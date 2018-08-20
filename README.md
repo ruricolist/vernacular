@@ -1,6 +1,7 @@
 # Vernacular
 
-Vernacular is an experimental module system for embedding other languages in Common Lisp programs, inspired by [Racket][].
+Vernacular is an experimental module system for embedding other
+languages in Common Lisp programs, inspired by [Racket][].
 
 Vernacular enables embedding languages where modules are scoped to
 files. This is a scenario for which [ASDF][] is useless, but which
@@ -13,7 +14,7 @@ Vernacular builds on [Overlord][].
 
 Here are some example language embeddings:
 
-1. [overlord/demo/js](demo/js.lisp). A simple demo language built
+1. [vernacular/demo/js](demo/js.lisp). A simple demo language built
    on [CL-JavaScript][]. Shows how to convert a pre-existing CL language
    implementation to work with Vernacular.
 
@@ -78,7 +79,7 @@ The important thing: when the package’s reader is called, that same
 package is also bound as the *current* package. It is then the
 responsibility of the reader to make sure any symbols it reads in, or
 inserts into the expansion, are interned in the correct package.
-(There is a shortcut for this, `overlord:reintern`.)
+(There is a shortcut for this, `vernacular:reintern`.)
 
 (There is one exception to the rule of *language=package*. If another
 package exists, having the same name, but ending in `-user`, and this
@@ -106,8 +107,8 @@ also be a nickname.
 implementation that supports [package-local nicknames][].)
 
 It is recommended, although not required, that your language package
-inherit from `overlord/cl` rather than from `cl`. The result is the
-same, except that `overlord/cl` globally shadows Common Lisp’s binding
+inherit from `vernacular/cl` rather than from `cl`. The result is the
+same, except that `vernacular/cl` globally shadows Common Lisp’s binding
 and definition forms so they can, in turn, be shadowed locally by
 language implementations.
 
@@ -164,7 +165,7 @@ modules will be loaded, you must not rely on load-time side effects.
 Most of the time, your language’s package expander will return a
 `simple-module` form.
 
-    (overlord:simple-module (#'moo)
+    (vernacular:simple-module (#'moo)
       (defun make-moo (o)
         (concat "M" (make-string o :initial-element #\o)))
 
