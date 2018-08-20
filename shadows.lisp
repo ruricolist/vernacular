@@ -1,2 +1,3 @@
 (uiop:define-package :vernacular/shadows
-    (:use-reexport :overlord/shadows))
+    (:nicknames :vernacular/cl)
+  (:use-reexport :overlord/shadows))
