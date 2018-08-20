@@ -1,7 +1,7 @@
 # Vernacular
 
-Vernacular is an experimental module system for embedding other
-languages in Common Lisp programs, inspired by [Racket][].
+Vernacular is a module system for languages embedded in Common Lisp.
+It is inspired by [Racket][].
 
 Vernacular enables embedding languages where modules are scoped to
 files. This is a scenario for which [ASDF][] is useless, but which
