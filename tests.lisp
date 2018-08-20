@@ -6,7 +6,7 @@
     :with-import-default :require-default)
   ;; Languages.
   (:import-from :vernacular/demo/js)
-  (:import-from :vernacular/lang/sweet-exp)
+  ;; (:import-from :vernacular/lang/sweet-exp)
   (:import-from :vernacular/lang/s-exp)
   (:import-from :core-lisp)
   (:export :run-vernacular-tests))
@@ -38,20 +38,20 @@
 ;;; Meta-languages.
 
 (test s-exp
-  (is (= 42
-         (with-import-default (answer :from "tests/s-exp-test.sexp" :once nil)
-           answer))))
+      (is (= 42
+             (with-import-default (answer :from "tests/s-exp-test.sexp" :once nil)
+               answer))))
 
-(test sweet-exp
-  (is
-   (= 2432902008176640000
-      (with-imports* (factorializer :from "tests/factorial.lsp" :binding (#'fact))
-        (fact 20)))))
+;; (test sweet-exp
+;;   (is
+;;    (= 2432902008176640000
+;;       (with-imports* (factorializer :from "tests/factorial.lsp" :binding (#'fact))
+;;         (fact 20)))))
 
 (test import-default-as-function
-  (is (= 2432902008176640000
-         (with-import-default (#'fact :from "tests/import-as-function.lsp" :once nil)
-           (fact 20)))))
+      (is (= 2432902008176640000
+             (with-import-default (#'fact :from "tests/import-as-function.lsp" :once nil)
+               (fact 20)))))
 
 ;;; Prefixes and renaming.
 
