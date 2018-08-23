@@ -2,6 +2,7 @@
 
 (uiop:define-package :vernacular/all
     (:nicknames :vernacular)
+  (:import-from :overlord)
   (:use :overlord/target-protocol)
   (:import-from :vernacular/module
     :module-ref :module-ref* :module-exports :module-static-exports)
@@ -12,6 +13,7 @@
   (:import-from :vernacular/file-package
     :ensure-file-package
     :reset-file-package)
+  (:import-from :vernacular/specials)
   (:export
    :module-ref :module-ref* :module-exports :module-static-exports
    :simple-module :hash-table-module
@@ -19,4 +21,5 @@
   (:use-reexport
    :overlord/lang
    :overlord/import-set
-   :overlord/importing))
+   :overlord/importing
+   :overlord/parsers))
