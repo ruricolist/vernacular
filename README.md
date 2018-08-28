@@ -3,10 +3,10 @@
 Vernacular is a module system for languages embedded in Common Lisp.
 It is inspired by [Racket][].
 
-Vernacular enables embedding languages where modules are scoped to
-files. This is a scenario for which [ASDF][] is useless, but which
-applies to almost all languages one might actually want to embed.
-Vernacular fills this gap.
+Vernacular enables embedding languages where modules are lexical and
+are scoped to files. This is a scenario for which [ASDF][] is useless,
+but which applies to almost all languages one might actually want to
+embed. Vernacular fills this gap.
 
 Vernacular builds on [Overlord][].
 
@@ -44,7 +44,7 @@ several important properties:
 
 3. Languages are *interoperable*. Lisp code can import modules written
    in embedded languages, and modules written in embedded languages
-   can import other modules – even modules written in other languages.
+   can import other modules in the same language – or even modules written in other languages.
 
 4. Languages are *reusable*. Support for meta-languages allows
    different languages to share the same parser or for the same
@@ -64,10 +64,10 @@ special first line. The special first line looks like this:
 This is called (following Racket) a *hash lang*.
 
 The language of a module can also be specified as part of the import
-syntax. Since the language is not an inherent part of the file, the
-same file can be loaded as a module in more than one language. And
-each language-file combination gets its own, completely independent
-module.
+syntax. This is important: since the language is not an inherent part
+of the file, the same file can be loaded as a module in more than one
+language. And each language-file combination gets its own, completely
+independent module.
 
 # Languages
 
@@ -142,23 +142,8 @@ The one exception is macros. A single namespace for run-time bindings
 and macros would not make sense in Vernacular where modules can be
 dynamically reloaded.
 
-Because Vernacular imports bindings rather than values, modules are
-always loaded lazily. A module is never actually loaded until a
-function imported from it is called, or a variable imported from it is
-looked up.
-
 Finally, Vernacular allows local imports: imports that only take effect
 within the body of a `with-imports` form.
-
-The combination of lazy loading and local imports may mean that, in
-some cases, needless imports are minimized. For example, a module that
-is only used inside of a macro might only be loaded when the macro is
-expanded at compile time.
-
-This does not apply, however, when saving images: all known modules
-are loaded before the image is saved. The real effect of pervasive
-lazy loading is that, since you do not know when, or in what order,
-modules will be loaded, you must not rely on load-time side effects.
 
 # Simple modules
 
@@ -179,11 +164,13 @@ What makes simple modules simple is that they cannot export macros. If
 you do want to export macros, you need something more complex (see
 below).
 
-The `simple-module` form is is built on the support for internal
+The `simple-module` form builds on the support for internal
 definitions in [Serapeum][] (the `local` macro), and shares its
 limitations with regard to the precedence of macro definitions. Macro
 definitions must precede all function or variable definitions, and all
 expressions.
+
+To be clear: you can define macros in a simple module (with `defmacro`), you just can’t export them.
 
 # Macro exports
 
