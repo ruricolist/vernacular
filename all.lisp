@@ -19,7 +19,7 @@
    :simple-module :hash-table-module
    :ensure-file-package :reset-file-package)
   (:use-reexport
-   :overlord/lang
-   :overlord/import-set
-   :overlord/importing
-   :overlord/parsers))
+   :vernacular/lang
+   :vernacular/import-set
+   :vernacular/importing
+   :vernacular/parsers))
