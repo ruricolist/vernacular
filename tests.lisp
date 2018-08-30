@@ -27,6 +27,10 @@
   `(with-imports (,mod ,@args :once nil)
      ,@body))
 
+(test skip-shebang
+  (with-input-from-string (in (fmt "#!/bin/sh~%#lang sh"))
+    (vernacular/hash-lang-syntax:stream-hash-lang in)))
+
 ;;; JS demo.
 
 (test js-demo
