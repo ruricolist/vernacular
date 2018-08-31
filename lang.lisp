@@ -596,6 +596,7 @@ instances of this pattern must be parameterized with a language."))
            ;; symbols.
            (*package* (user-package (resolve-package lang)))
            (*base* (pathname-directory-pathname *source*)))
+      (depends-on-vernacular)
       (depends-on *source*)
       (compile-to-file
        (wrap-current-module
@@ -604,6 +605,11 @@ instances of this pattern must be parameterized with a language."))
        (ensure-directories-exist *output*)
        :top-level (package-compile-top-level? lang)
        :source *source*))))
+
+(defun depends-on-vernacular ()
+  "Depend on the version of Vernacular itself."
+  (depends-on
+   (overlord/oracle:system-version-oracle :vernacular)))
 
 (defun fasl-lang-pattern (lang source)
   (let ((lang (force-symbol lang)))
