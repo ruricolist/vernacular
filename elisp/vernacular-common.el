@@ -10,27 +10,6 @@ Must be the name of a CL package.")
 
 (defvar vernacular-module-name-hist ())
 
-(eval-when-compile
-  (cl-defmacro sl-case (&body (&key (sly '(error "Not yet implemented"))
-                                    (slime '(error "Not yet implemented"))))
-    `(cond ((featurep 'sly)
-            ,sly)
-           ((featurep 'slime)
-            ,slime)
-           (t (vernacular-give-up)))))
-
-(declare-function sly-read-package-name "sly")
-(declare-function slime-read-package-name "slime")
-
-(declare-function sly-to-lisp-filename "sly")
-(declare-function slime-to-lisp-filename "slime")
-
-(declare-function sly-eval-with-transcript "sly")
-(declare-function slime-eval-with-transcript "slime")
-
-(declare-function sly-eval-describe "sly")
-(declare-function slime-eval-describe "slime")
-
 (defun vernacular-hash-lang ()
   (save-excursion
     (goto-char (point-min))
@@ -54,20 +33,6 @@ Must be the name of a CL package.")
                     vernacular-module-name-hist
                     nil nil nil 'vernacular-module-name-hist)))
 
-(defun vernacular-give-up ()
-  (cl-assert (and (not (featurep 'sly))
-                  (not (featurep 'slime))))
-  (error "No SLIME, no Sly, I give up."))
-
-(defun vernacular-eval (form)
-  (sl-case
-   :sly (sly-eval-with-transcript form)
-   :slime (slime-eval-with-transcript form)))
-
-(defun vernacular-lisp-file-name (file)
-  (sl-case :sly (sly-to-lisp-filename file)
-           :slime (slime-to-lisp-filename file)))
-
 (defun vernacular-compile-file (file lang)
   (interactive (list buffer-file-name (vernacular-lang)))
   (let ((file (vernacular-lisp-file-name file)))
@@ -78,22 +43,16 @@ Must be the name of a CL package.")
   (vernacular-lisp-file-name
    (buffer-file-name)))
 
-(defun vernacular-switch-repl ()
-  (interactive)
-  (sl-case
-   :sly (call-interactively 'sly-mrepl)
-   :slime (call-interactively 'slime-switch-to-output-buffer)))
-
 (defun vernacular--import (file lang binding)
   (let ((file (vernacular-lisp-file-name file))
         (module-name (vernacular-read-module-name)))
     (vernacular-eval
      `(cl:progn (vernacular:import ,module-name
-                              :from ,file
-                              :as ,lang
-                              :binding ,binding)
+                                   :from ,file
+                                   :as ,lang
+                                   :binding ,binding)
                 ;; TODO Display a list of imports.
-             ,file))))
+                ,file))))
 
 (defun vernacular-import-vars (file lang)
   (interactive (list buffer-file-name (vernacular-lang)))
@@ -107,19 +66,11 @@ Must be the name of a CL package.")
   (interactive (list buffer-file-name (vernacular-lang)))
   (vernacular--import file lang nil))
 
-(defun vernacular-expand-module ()
-  (interactive)
+(defun vernacular-expand-module-expr ()
   (save-some-buffers)
   (let* ((lang (vernacular-lang))
-         (file (vernacular-lisp-file-name buffer-file-name))
-         (expr `(vernacular:expand-module-for-emacs ,lang ,file)))
-    ;; TODO Prettier output (more like `sly-expand-1').
-    (sl-case
-     :sly (sly-eval-describe
-           `(slynk:pprint-eval ,(prin1-to-string expr)))
-     :slime (slime-eval-describe
-             `(swank::swank-pprint
-               (cl:list ,(prin1-to-string expr)))))))
+         (file (vernacular-lisp-file-name buffer-file-name)))
+    `(vernacular:expand-module-for-emacs ,lang ,file)))
 
 (defun maybe-activate-vernacular ()
   (save-excursion
@@ -147,4 +98,4 @@ Must be the name of a CL package.")
   :lighter " Vernacular"
   :keymap vernacular-mode-keymap)
 
-(provide 'vernacular-mode)
+(provide 'vernacular-common)
