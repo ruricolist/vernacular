@@ -9,7 +9,6 @@
     :uiop/pathname
 
     :vernacular/module
-    :vernacular/import-set
     :vernacular/types
     :vernacular/specials
     :vernacular/lang)
@@ -63,9 +62,6 @@
        (loop for export in (get-static-exports)
              for sym = (intern (string export))
              collect `(,export :as #',sym)))
-      ((tuple :import-set list)
-       (let ((import-set (second spec)))
-         (expand-import-set import-set #'get-static-exports)))
       (list spec))))
 
 (defmacro function-wrapper (fn)

@@ -88,7 +88,6 @@
 
 (deftype binding-spec ()
   '(or (member :all :all-as-functions)
-    (tuple :import-set list)
     list))
 
 (deftype canonical-binding ()

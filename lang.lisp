@@ -14,9 +14,10 @@
     :overlord/target
 
     :vernacular/types
-    :vernacular/import-set
     :vernacular/hash-lang-syntax
-    :vernacular/module)
+    :vernacular/module
+    :vernacular/file-package)
+  (:import-from :overlord :building?)
   ;; How to compile a program to a fasl.
   (:import-from :vernacular/compile-to-file
     :compile-to-file :load-as-module :fasl-ext)

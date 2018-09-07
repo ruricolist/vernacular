@@ -20,7 +20,6 @@
    #:current-module-cell
    #:current-module-source
    #:current-module-lang
-   #:current-module-meta
    #:default-export-module
    #:module-error
    #:module-error-module

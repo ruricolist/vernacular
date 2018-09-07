@@ -20,6 +20,5 @@
    :ensure-file-package :reset-file-package)
   (:use-reexport
    :vernacular/lang
-   :vernacular/import-set
    :vernacular/importing
    :vernacular/parsers))

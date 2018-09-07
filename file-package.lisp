@@ -4,12 +4,15 @@
     :uiop/pathname
     :overlord/types)
   (:import-from :vernacular/specials :*language*)
-  (:import-from :overlord/digest :digest-string)
-  (:import-from :s-base64 :encode-base64-bytes)
+  (:import-from :overlord/base :current-system)
+  (:import-from :overlord/asdf
+    :primary-asdf-system-name
+    :asdf-system-base)
   (:export
    :find-file-package
    :ensure-file-package
-   :reset-file-package))
+   :define-file-package
+   :in-file-package))
 
 (in-package :vernacular/file-package)
 
@@ -18,111 +21,44 @@
 
 (defparameter *suffix-bytes* 4)
 
-(defun ensure-file-package (file &key (lang *language*) use-list)
+(defun ensure-file-package (file)
   (check-type file pathname-designator)
-  (check-type lang string-designator)
-  (check-type use-list (list-of package-designator))
   (assure package
-    (or (find-file-package file :lang lang)
-        (make-file-package file :lang lang :use-list use-list))))
+    (or (find-file-package file)
+        (make-file-package file))))
 
-(defun reset-file-package (file &key (lang *language*) use-list)
-  (check-type file pathname-designator)
-  (check-type lang string-designator)
-  (check-type use-list (list-of package-designator))
-  (assure package
-    (reset-package
-     (ensure-file-package file :lang lang :use-list use-list))))
-
-(defun find-file-package (file &key lang use-list)
-  (declare (ignore use-list))
-  (let ((name (file-package-name file lang)))
+(defun find-file-package (file)
+  (let ((name (file-package-name file)))
     (find-package name)))
 
-(defun make-file-package (file &key lang use-list)
-  (let ((name (file-package-name file lang)))
-    (make-package name :use use-list)))
+(defun make-file-package (file)
+  (let ((name (file-package-name file)))
+    (make-package name)))
 
-(defun file-package-name (file lang)
+(defun file-package-name (file)
   (let* ((file (pathname file))
-         (string
-           (fmt "file=~a,lang=~a"
-                (ellipsize (unix-namestring file) 20)
-                lang))
-         (hash (digest-string string))
-         (bytes (subseq hash 0 *suffix-bytes*))
-         (suffix (make-suffix bytes))
-         (file-name (pathname-name file))
-         (type (pathname-type file)))
-    (fmt "~a.~a~~~a"
-         (string-upcase file-name)
-         type
-         suffix)))
+         (system (current-system))
+         (base (asdf-system-base system))
+         (relative-path (enough-pathname file base))
+         (system-name (primary-asdf-system-name system))
+         (relative-dirs
+           (drop-while #'keywordp
+                       (pathname-directory relative-path))))
+    (assert (relative-pathname-p file))
+    (fmt "~a/~a/~a.~a"
+         system-name
+         (string-join relative-dirs "/")
+         (pathname-name file)
+         (or (pathname-type file) ""))))
 
-(defun make-suffix (suffix)
-  (~>> suffix
-       bytes->base64
-       (string-right-trim "=")))
+(defmacro in-file-package (file)
+  (let ((name (file-package-name file)))
+    `(in-package ,name)))
 
-(defun bytes->base64 (bytes)
-  (with-output-to-string (s)
-    (encode-base64-bytes bytes s)))
-
-(defun byte-array->string (byte-array &optional (base 16))
-  (mapconcat (op (fmt "~(~vr~)" base _)) byte-array ""))
-
-
-
-(defun reset-package (package)
-  (assure package
-    (reset-package/unintern-all package)))
-
-;;; TODO It's not clear to me which of these is the best way to do it.
-
-(defun reset-package/delete-and-recreate (pkg)
-  (let ((name (package-name pkg))
-        (use-list (package-use-list pkg))
-        (nicknames (package-nicknames pkg)))
-    (delete-package pkg)
-    (make-package name
-                  :use use-list
-                  :nicknames nicknames)))
-
-(defun reset-package/unintern-all (pkg)
-  (dolist (sym (package-own-symbols pkg) pkg)
-    (unintern sym pkg)))
-
-(defun reset-package/undefine (pkg)
-  (dolist (sym (package-own-symbols pkg) pkg)
-    (cond-every
-      ((fboundp sym) (fmakunbound sym))
-      ;; Can't undo a special declaration.
-      ((boundp sym) (unintern sym pkg))
-      ;; Can't undo a symbol macro declaration.
-      ((symbol-macro? sym) (unintern sym))
-      ((class-name? sym) (setf (find-class sym) nil)))))
-
-(defun symbol-macro? (sym)
-  (and (symbolp sym)
-       (not (eql sym
-                 (macroexpand sym)))))
-
-(defun class-name? (sym)
-  (and (symbolp sym)
-       (find-class sym :errorp nil)))
-
-(defun package-own-symbols (pkg)
-  (loop for sym being the present-symbols in pkg
-        when (eql (symbol-package sym) pkg)
-          collect sym))
-
-(defun symbol-status (sym &optional (package (symbol-package sym)))
-  (assure symbol-status
-    (let ((name (symbol-name sym)))
-      (nth-value 1
-        (find-symbol name package)))))
-
-(defun unintern-from-home-package (sym)
-  (prog1 sym
-    (when-let (package (symbol-package sym))
-      (unintern sym package))))
+(defmacro define-file-package (source)
+  (let* ((package (ensure-file-package source))
+         (name (package-name package)))
+    `(defpackage ,name
+       ;; Pass the use list of the existing package into the
+       ;; macroexpansion.
+       (:use ,(string *language*)))))

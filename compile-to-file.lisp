@@ -1,8 +1,9 @@
 (defpackage #:vernacular/compile-to-file
-  (:use #:cl #:alexandria #:serapeum #:vernacular/specials)
+  (:use #:cl #:alexandria #:serapeum
+    #:vernacular/specials
+    #:vernacular/file-package)
   (:import-from #:overlord/types #:absolute-pathname)
   (:import-from #:overlord/asdf #:asdf-system-relative-pathname)
-  (:import-from #:vernacular/file-package #:ensure-file-package)
   (:import-from #:trivial-macroexpand-all #:macroexpand-all)
   (:export #:compile-to-file #:load-as-module :fasl-ext :module))
 (in-package #:vernacular/compile-to-file)
@@ -25,19 +26,8 @@
 (def universal-file
   (asdf-system-relative-pathname :vernacular "universal.lisp"))
 
-(defmacro define-file-package (source lang)
-  (let* ((package (ensure-file-package source :lang lang))
-         (name (package-name package))
-         (use-list (mapcar #'package-name (package-use-list package))))
-    `(eval-always
-       (unless (find-package ,name)
-         (defpackage ,name
-           ;; Pass the use list of the existing package into the
-           ;; macroexpansion.
-           (:use ,@use-list))))))
-
 (defun compile-to-file (program output-file
-                        &key top-level source
+                        &key source
                         &aux (namestring (namestring source)))
   "Compile PROGRAM to a fasl."
   (check-type source absolute-pathname)
@@ -49,13 +39,12 @@
          (*program-preamble*
            ;; Ensure that a file package exists whenever compiling at
            ;; the top level.
-           (and top-level
-                source
-                `(define-file-package ,source ,*language*)))
+           `(progn (define-file-package ,source)
+                   (in-file-package ,source)))
          (*program*
-           (if top-level
-               program
-               `(setq *module* ,program))))
+           `(progn
+              ,program
+              (setq *module* (find-file-package ,source)))))
     (synchronized ()
       ;; TODO The following is cribbed from the sources of Slime and Sly.
       (with-compilation-unit (:allow-other-keys t
@@ -78,6 +67,6 @@
   "Load FILE and return whatever it assigns to `*module*'."
   (let ((*module* no-module))
     (load file :external-format :utf-8)
-    (if (module? *module*)
+    (if (packagep *module*)
         *module*
         (error "No module in ~a" file))))
