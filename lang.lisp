@@ -88,6 +88,9 @@
   (lang lang-name)
   (path absolute-pathname))
 
+(defmethod target-extensions ((target module-spec))
+  '(:vernacular))
+
 (fset:define-cross-type-compare-methods module-spec)
 
 (defmethod fset:compare ((spec1 module-spec) (spec2 module-spec))
@@ -579,6 +582,9 @@ interoperation with Emacs."
    (source :initarg :source))
   (:documentation "Pattern for building a fasl from a file. Note that
 instances of this pattern must be parameterized with a language."))
+
+(defmethod target-extensions ((p fasl-lang-pattern))
+  '(:vernacular))
 
 (defmethods fasl-lang-pattern (self lang source)
   (:method pattern.output-defaults (self)
