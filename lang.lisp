@@ -37,7 +37,7 @@
   (:export
    :lang :lang-name :hash-lang-name
    :load-module
-   :expand-module
+   :expand-module :expand-module*
    :package-expander :package-reader :module-progn-in
    :with-meta-language
    :load-same-name-system
@@ -794,6 +794,9 @@ This should be a superset of the variables bound by CL during calls to
                    (funcall reader source in))))
           module-form)))))
 
+(defun expand-module* (source)
+  (expand-module (guess-lang source) source))
+
 (defun expand-module-for-emacs (lang source)
   (setf lang (resolve-lang lang))
   (values (expand-module lang source)))
@@ -867,6 +870,9 @@ the #lang declaration ends."
     (if (stringp lang)
         (values (lookup-hash-lang lang) pos)
         (values nil 0))))
+
+(defun guess-lang (file)
+  (values (guess-lang+pos file)))
 
 (defun guess-source (lang alias)
   (~>> (etypecase-of import-alias alias
