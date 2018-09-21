@@ -16,6 +16,8 @@
   (:import-from :overlord/types
     :error*
     :absolute-pathname)
+  (:import-from :overlord/freeze
+    :*before-hard-freeze-hook*)
   (:import-from :vernacular/types
     :vernacular-error)
   (:import-from :vernacular/shadows)
@@ -86,6 +88,11 @@
         (unless (equal old-value new-value)
           (warn "~s was claimed for ~a in ~a" module source lang)))
       (setf (gethash module table) new-value))))
+
+(defun clear-claimed-module-names ()
+  (clrhash (symbol-value '*claimed-module-names*)))
+
+(add-hook '*before-hard-freeze-hook* 'hard-freeze-modules)
 
 (defun lang+source (lang source module base &optional env)
   (setf source (macroexpand source env)) ;Allow a symbol macro as the source.

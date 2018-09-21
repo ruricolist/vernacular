@@ -161,12 +161,7 @@
       (fmt "~a (#lang ~a)"
            path (string-downcase lang)))))
 
-(defun hard-freeze-modules ()
-  ;; The table of module cells needs special handling.
-  (clear-module-cells)
-  (clrhash (symbol-value '*claimed-module-names*)))
-
-(add-hook '*before-hard-freeze-hook* 'hard-freeze-modules)
+(add-hook '*before-hard-freeze-hook* 'clear-module-cells)
 
 
 ;;; Module cells.
