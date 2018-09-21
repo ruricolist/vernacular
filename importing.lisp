@@ -78,16 +78,15 @@
   "Table to track claimed modules, so we can warn if they are
   redefined.")
 
-(defun claim-module-name (module lang source)
-  "Warn if MODULE is already in use with a different LANG and SOURCE."
+(defun claim-module-name (module source)
+  "Warn if MODULE is already bound to a different LANG."
   (synchronized ()
     (let* ((table *claimed-module-names*)
-           (old-value (gethash module table))
-           (new-value (list lang source)))
+           (old-value (gethash module table)))
       (when old-value
-        (unless (equal old-value new-value)
-          (warn "~s was claimed for ~a in ~a" module source lang)))
-      (setf (gethash module table) new-value))))
+        (unless (equal old-value source)
+          (warn "~s was claimed for ~a" module source)))
+      (setf (gethash module table) source))))
 
 (defun clear-claimed-module-names ()
   (clrhash (symbol-value '*claimed-module-names*)))
@@ -151,9 +150,8 @@
                            :bindings bindings
                            :prefix prefix
                            :env env)
-    ;; Warn if MODULE is already in use with an incompatible language
-    ;; and source.
-    (claim-module-name module lang source)
+    ;; Warn if MODULE is already in use with another file.
+    (claim-module-name module source)
     `(progn
        (import-module ,module
          :as ,lang
