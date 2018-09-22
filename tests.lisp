@@ -90,7 +90,6 @@
       (delete-package pkg))
     (eval `(vernacular:import-as-package ,pkg
              :from "tests/islisp/exports.lsp"
-             :as :core-lisp
              :binding (x #'y (macro-function z))))
     (is-true (find-package pkg))
     (is (equal '(:var :fn :macro)
@@ -325,6 +324,6 @@
 
 (test islisp-phasing
   "Test that state is not preserved across rebuilds."
-  (require-as :core-lisp #1="tests/islisp/phasing.lsp")
+  (require-as nil #1="tests/islisp/phasing.lsp")
   (with-imports* (m :from #1# :binding (#'inc-count))
     (is (= (inc-count) 0))))

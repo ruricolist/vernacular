@@ -107,7 +107,7 @@
       ((and source (no lang))
        (let ((source (resolve-source source)))
          (values (resolve-lang
-                  (or (guess-lang+pos source)
+                  (or (source-lang source)
                       (required-argument :as)))
                  source)))
       ;; We have the language, but not the source.
@@ -144,7 +144,7 @@
   "Syntax for importing from modules."
   ;; Ensure we have both the lang and the source.
   (receive (lang source bindings)
-      (resolve-import-spec :lang lang
+      (resolve-import-spec :lang (source-lang source lang)
                            :source source
                            :module module
                            :bindings bindings
@@ -201,11 +201,11 @@ Can't use eval-when because it has to work for local bindings."
 (defun check-static-bindings (lang source bindings)
   "Check that BINDINGS is free of duplicates. Also, using
 `module-static-exports', check that all of the symbols being bound are
-actually exported by the module specified by LANG and SOURCE."
+actually exported by the module specified by SOURCE."
   (ensure-lang-exists lang)
   (when bindings
     (check-static-bindings-1
-     (ensure-lang-exists lang)
+     lang
      (if (relative-pathname-p source)
          (merge-pathnames* source (base))
          source)
@@ -235,28 +235,28 @@ actually exported by the module specified by LANG and SOURCE."
               (check-exports source bindings exports))
           (recompile-object-file ()
             :report "Recompile the object file."
-            (let ((object-file (faslize lang source))
-                  (target (module-spec lang source)))
+            (let ((object-file (faslize source))
+                  (target (fasl-lang-pattern-ref source)))
               (delete-file-if-exists object-file)
               (build target)
               (check-static-bindings lang source bindings)))))))
 
-(defmacro declaim-module (as from)
+(defmacro declaim-module (from)
   `(propagate-side-effect
      (ensure-target-recorded
-      (module-spec ,as ,from))))
+      (fasl-lang-pattern-ref ,from))))
 
 (defmacro import-module (module &body (&key as from once))
   "When ONCE is non-nil, the module will only be rebuilt if it has not
 yet been loaded."
   (check-type module var-alias)
-  (let ((req-form
-          (if once
-              `(require-once ',as ,from)
-              `(require-as ',as ,from))))
+  (let* ((req-form
+           (if once
+               `(require-once ,as ,from)
+               `(require-as ,as ,from))))
     `(progn
        (vernacular/shadows:def ,module ,req-form)
-       (declaim-module ,as ,from)
+       (declaim-module ,from)
        ',module)))
 
 (defmacro import-default (var &body (&key as from))
@@ -273,7 +273,7 @@ yet been loaded."
             ((or function-alias macro-alias)
              (second module)))))
     `(define-target-task ,task-name
-       (setf ,module (require-as ',as ,from))
+       (setf ,module (require-as ,as ,from))
        (update-value-bindings ,module ,@values))))
 
 (defmacro update-value-bindings (module &body values)

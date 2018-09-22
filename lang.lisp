@@ -3,7 +3,6 @@
     :local-time
     :uiop/filesystem
     :uiop/pathname
-    :overlord/target-protocol
     :overlord/types
     :overlord/util
     :overlord/cache
@@ -33,6 +32,7 @@
     :*output*)
   (:import-from :vernacular/specials
     :*language*
+    :*default-language*
     :*source*)
   (:export
    :lang :lang-name :hash-lang-name
@@ -61,9 +61,10 @@
    :faslize
    :ensure-lang-exists
    :guess-source
-   :guess-lang+pos
+   :source-lang
    :resolve-lang
-   :module-spec))
+   :fasl-lang-pattern-ref
+   :registered-lang))
 (in-package :vernacular/lang)
 
 
@@ -83,99 +84,19 @@
 (deftype lang ()
   '(or package lang-name))
 
-(defconstructor module-spec
-  (lang lang-name)
-  (path absolute-pathname))
-
-(defmethod target-extensions ((target module-spec))
-  '(:vernacular))
-
-(fset:define-cross-type-compare-methods module-spec)
-
-(defmethod fset:compare ((spec1 module-spec) (spec2 module-spec))
-  (nest
-   (let-match1 (module-spec lang1 path1) spec1)
-   (let-match1 (module-spec lang2 path2) spec2)
-   (if (and (eql lang1 lang2)
-            (equal path1 path2))
-       :equal
-       (let ((list1 (list lang1 path1))
-             (list2 (list lang2 path2)))
-         (declare (dynamic-extent list1 list2))
-         (fset:compare list1 list2)))))
-
-(defmethod target-exists? ((target module-spec))
-  (~> target
-      module-spec-cell
-      module-cell.module))
-
-(defmethod target-timestamp ((target module-spec))
-  (let* ((cell (module-spec-cell target)))
-    (with-slots (module timestamp) cell
-      (if (null module) never timestamp))))
-
-(defmethod (setf target-timestamp) (timestamp (target module-spec))
-  (let ((cell (module-spec-cell target)))
-    (setf (module-cell.timestamp cell) timestamp)))
-
-(defmethod resolve-target ((target module-spec) &optional base)
-  (let-match1 (module-spec lang source) target
-    (if (absolute-pathname-p source) target
-        (module-spec lang
-                     (assure tame-pathname
-                       (merge-pathnames* source
-                                         (or base (base))))))))
-
-(defmethod target= ((x module-spec) (y module-spec))
-  (multiple-value-match (values x y)
-    (((module-spec lang1 path1)
-      (module-spec lang2 path2))
-     (and (eql lang1 lang2)
-          (pathname-equal path1 path2)))))
-
-(defmethod hash-target ((target module-spec))
-  (let-match1 (module-spec lang path) target
-    (dx-sxhash (list 'module-spec lang path))))
-
-(defmethod target-build-script ((target module-spec))
-  (let ((cell (module-spec-cell target)))
-    (with-slots (lang source) cell
-      (task target
-            (lambda ()
-              ;; Prevent the old module object from persisting if
-              ;; there is a problem building the new one.
-              (unload-module-cell cell)
-              (let ((*base* (pathname-directory-pathname source)))
-                ;; Depend on the source file.
-                (depends-on source)
-                ;; Let the language tell you what to depend on.
-                (lang-deps lang source))
-
-              (let ((*language* lang))
-                (load-module-into-cell cell)))
-            trivial-prereq))))
-
-(defmethod target-node-label ((target module-spec))
-  (let-match1 (module-spec lang path) target
-    (let ((path (native-namestring path)))
-      (fmt "~a (#lang ~a)"
-           path (string-downcase lang)))))
-
-(add-hook '*before-hard-freeze-hook* 'clear-module-cells)
-
 
 ;;; Module cells.
 
 ;;; What's a module cell? What we want is a namespace for modules,
-;;; indexed by language and source file. The obvious thing would be to
-;;; declare a table (with `defvar') store modules there. Basically,
-;;; that is what we do. But instead of simply storing the module in
-;;; the table, we store an indirection -- a "module cell", a mutable
-;;; cell which contains the actual module. Then, using compiler macros
-;;; and `load-time-value', we can inject direct references to module
-;;; cells into the compiled code. The result is that, for inline
-;;; references to modules, no run-time lookup is necessary. This is
-;;; key to keeping modules fast while also allowing for modules to be
+;;; indexed by source file. The obvious thing would be to declare a
+;;; table (with `defvar') and store modules there. Basically, that is
+;;; what we do. But instead of simply storing the module in the table,
+;;; we store an indirection -- a "module cell", a mutable cell which
+;;; contains the actual module. Then, using compiler macros and
+;;; `load-time-value', we can inject direct references to module cells
+;;; into the compiled code. The result is that, for inline references
+;;; to modules, no run-time lookup is necessary. This is key to
+;;; keeping modules fast while also allowing for modules to be
 ;;; redefined. And ultimately it is similar to the strategy that Lisp
 ;;; itself uses to allow functions to be redefined at runtime without
 ;;; having to recompile all their callers.
@@ -194,10 +115,6 @@
     :type target-timestamp
     :initform never
     :accessor module-cell.timestamp)
-   (lang
-    :initarg :lang
-    :type lang-name
-    :reader module-cell.lang)
    (source
     :initarg :source
     :type (and file-pathname tame-pathname)
@@ -215,8 +132,8 @@ the module is reloaded.")
     :reader monitor))
   (:documentation "Storage for a module.
 
-Each lang+source combination gets its own module cell with its own
-unique identity.
+Each source file gets its own module cell with its own unique
+identity.
 
 The module itself may be reloaded, but the module cell is interned
 forever."))
@@ -233,38 +150,22 @@ forever."))
                      timestamp never)))
            *module-cells*))
 
+(add-hook '*before-hard-freeze-hook* 'clear-module-cells)
+
 ;;; Compiler macro needs to appear as soon as possible to satisfy
 ;;; SBCL.
-(define-compiler-macro module-cell (&whole call lang path)
-  (cond ((packagep lang)
-         `(module-cell ,(lang-name lang) ,path))
-        ((or (quoted-symbol? lang) (keywordp lang))
-         (typecase-of (or string cl:pathname) path
-           (string `(module-cell ,lang ,(ensure-pathname path :want-pathname t)))
-           (pathname
-            (let ((path (resolve-target path (base)))) ;Resolve now, while `*base*' is bound.
-              `(load-time-value
-                (locally
-                    ;; Prevent recursive expansion.
-                    (declare (notinline module-cell))
-                  ;; We can't use %ensure-module-cell directly,
-                  ;; because it doesn't apply the defaults for the
-                  ;; language.
-                  (module-cell ,lang ,path)))))
-           (otherwise call)))
-        ((constantp lang)
-         (let ((val (eval lang)))
-           (if (eql val lang) call
-               `(module-cell ,val ,path))))
-        (t call)))
-
-(defun module-spec-cell (spec)
-  (let-match1 (module-spec lang path) spec
-    (module-cell lang path)))
-
-(defun module-cell-spec (cell)
-  (with-slots (lang source) cell
-    (module-spec lang source)))
+(define-compiler-macro module-cell (&whole call path)
+  (typecase-of (or string pathname) path
+    (string
+     `(module-cell ,(ensure-pathname path :want-pathname t)))
+    (pathname
+     (let ((path (resolve-source path))) ;Resolve now, while `*base*' is bound.
+       `(load-time-value
+         (locally
+             ;; Prevent recursive expansion.
+             (declare (notinline module-cell))
+           (module-cell ,path)))))
+    (otherwise call)))
 
 (defun module-cell-meta (cell key)
   (synchronized (cell)
@@ -275,18 +176,18 @@ forever."))
     (setf (getf (module-cell.meta cell) key)
           value)))
 
-(defplace module-meta (lang path key)
-  (module-cell-meta (module-cell lang path) key))
+(defplace module-meta (path key)
+  (module-cell-meta (module-cell path) key))
 
-(define-compiler-macro module-meta (lang path key)
+(define-compiler-macro module-meta (path key)
   "Expand the call to module-cell at compile time so it can be
 resolved at load time."
-  `(module-cell-meta (module-cell ,lang ,path) ,key))
+  `(module-cell-meta (module-cell ,path) ,key))
 
-(define-compiler-macro (setf module-meta) (value lang path key)
-  `(setf (module-cell-meta (module-cell ,lang ,path) ,key) ,value))
+(define-compiler-macro (setf module-meta) (value path key)
+  `(setf (module-cell-meta (module-cell ,path) ,key) ,value))
 
-(defmethods module-cell (self lock source lang module)
+(defmethods module-cell (self lock source module)
   (:method initialize-instance :after (self &key)
     ;; Give the lock a name.
     (setf lock
@@ -294,32 +195,46 @@ resolved at load time."
 
   (:method print-object (self stream)
     (print-unreadable-object (self stream :type t)
-      (format stream "~a (~a) (~:[not loaded~;loaded~])"
+      (format stream "~a (~:[not loaded~;loaded~])"
               source
-              lang
               module))))
 
 (defun load-module-into-cell (cell)
-  (lret ((module
-          (validate-module
-           (load-module (module-cell.lang cell)
-                        (module-cell.source cell)))))
-    (unload-module-cell cell)
-    (setf
-     (module-cell.module cell) module
-     (module-cell.timestamp cell) (now))))
+  (synchronized (cell)
+    (lret* ((module
+             (~> cell
+                 module-cell.source
+                 load-module
+                 validate-module)))
+      (unload-module-cell cell)
+      (setf
+       (module-cell.module cell) module
+       (module-cell.timestamp cell) (now)))))
 
 (defun unload-module-cell (cell)
-  (with-slots (timestamp module) cell
-    (clear-inline-caches (nix module))
-    (setf timestamp never)))
+  (synchronized (cell)
+    (with-slots (timestamp module) cell
+      (clear-inline-caches (nix module))
+      (setf timestamp never))))
 
-(defun unload-module (lang source)
+(defun ensure-module-loaded (source)
+  (ensure-module-cell-loaded (module-cell source)))
+
+(define-compiler-macro ensure-module-loaded (source)
+  `(ensure-module-cell-loaded (module-cell ,source)))
+
+(defun ensure-module-cell-loaded (cell)
+  (unless (module-cell.module cell)
+    (synchronized (cell)
+      (unless (module-cell.module cell)
+        (load-module-into-cell cell)))))
+
+(defun unload-module (source)
   (declare (notinline module-cell))
-  (unload-module-cell (module-cell lang source)))
+  (unload-module-cell (module-cell source)))
 
-(defun %ensure-module-cell (lang path)
-  "Get the module cell for LANG and PATH, creating and interning one
+(defun intern-module-cell (path)
+  "Get the module cell for PATH, creating and interning one
 if it does not exist."
   (check-type path absolute-pathname)
   (setf path
@@ -329,25 +244,21 @@ if it does not exist."
                     (build path)
                     (truename* path))
                   (error "Cannot resolve pathname ~a" path)))))
-  (mvlet* ((key (cons lang path))
-           (cell cell?
-            (gethash key *module-cells*)))
+  (mvlet* ((cell cell?
+            (gethash path *module-cells*)))
     (if cell? (assure module-cell cell)
-        (let ((cell (make 'module-cell :lang lang :source path)))
-          (setf (gethash key *module-cells*) cell)))))
+        (let ((cell (make 'module-cell :source path)))
+          (setf (gethash path *module-cells*) cell)))))
 
-(defun module-cell (lang path)
-  (let ((path
-          (assure absolute-pathname
-            (merge-input-defaults lang (ensure-pathname path :want-pathname t))))
-        (lang (lang-name lang)))
-    (%ensure-module-cell lang path)))
+(defun module-cell (path)
+  (let* ((path (ensure-absolute path)))
+    (intern-module-cell path)))
 
-(defun find-module (lang source)
-  (module-cell.module (module-cell lang source)))
+(defun find-module (source)
+  (module-cell.module (module-cell source)))
 
-(define-compiler-macro find-module (lang source)
-  `(module-cell.module (module-cell ,lang ,source)))
+(define-compiler-macro find-module (source)
+  `(module-cell.module (module-cell ,source)))
 
 
 ;;; Languages
@@ -358,46 +269,35 @@ if it does not exist."
 ;;; binding.
 
 (defun %require-as (lang source *base* &rest args)
-  (ensure-pathnamef source)
   (apply #'dynamic-require-as
          lang
-         (merge-pathnames* source *base*)
+         source
          args))
 
 (defun dynamic-require-default (lang source &key force)
   (let ((module (dynamic-require-as lang source :force force)))
     (module-ref module :default)))
 
-(defun lang+source (lang source)
-  (check-type source (and absolute-pathname file-pathname))
-  (let* ((lang (or lang (guess-lang+pos source)))
-         (lang (lang-name lang)))
-    (values lang source)))
-
 (defun dynamic-require-as (lang source &key force)
-  (receive (lang source) (lang+source lang source)
+  (let* ((*default-language* (and lang (lang-name lang)))
+         (source (resolve-source source)))
     (when force
-      (dynamic-unrequire-as lang source))
-    (assure (not module-cell)
-      (let ((spec (module-spec lang source)))
-        (depends-on spec)
-        (module-cell.module
-         (module-spec-cell spec))))))
+      (dynamic-unrequire source))
+    (depends-on (fasl-lang-pattern-ref source))
+    (ensure-module-loaded source)
+    (find-module source)))
 
 (defun require-once (lang source)
-  (receive (lang source) (lang+source lang source)
-    (let ((spec (module-spec lang source)))
-      (or (module-cell.module
-           (module-spec-cell spec))
-          (dynamic-require-as lang source)))))
+  (let ((source (resolve-source source)))
+    (or (find-module source)
+        (dynamic-require-as lang source))))
 
-(defun %unrequire-as (lang source *base*)
-  (dynamic-unrequire-as lang
-                        (merge-pathnames* source *base*)))
+(defun %unrequire (source *base*)
+  (dynamic-unrequire (resolve-source source)))
 
-(defun dynamic-unrequire-as (lang source)
+(defun dynamic-unrequire (source)
   (check-type source (and absolute-pathname file-pathname))
-  (unload-module lang source)
+  (unload-module source)
   (values))
 
 (defmacro require-as (&rest args)
@@ -418,48 +318,41 @@ Two args is treated as the language and the source."
 (defun require-for-emacs (lang source)
   "Like `dynamic-require-as', but with looser restrictions for easy
 interoperation with Emacs."
-  (let ((lang
-          (resolve-lang lang))
-        (source
-          (assure absolute-pathname
-            (ensure-pathname source))))
-    (dynamic-require-as lang source)
-    (values)))
+  (dynamic-require-as lang source)
+  (values))
 
-(defmacro unrequire-as (lang source)
-  "Wrap `%unrequire-as', resolving the base at macro-expansion time."
-  `(%unrequire-as ,lang ,source ,(base)))
+(defmacro unrequire (source)
+  "Wrap `%unrequire', resolving the base at macro-expansion time."
+  `(%unrequire ,source ,(base)))
 
 (defun escape-lang-name (lang-name)
   (check-type lang-name lang-name)
   (url-encode (string lang-name) :encoding :utf-8))
 
-(defun lang-fasl-dir (lang current-dir)
-  (let ((lang-string (escape-lang-name lang)))
+(defun vernacular-major-version ()
+  (version-major-version
+   (asdf-system-version "vernacular")))
+
+(defun fasl-dir (current-dir)
+  (let ((version (princ-to-string (vernacular-major-version))))
     (shadow-tree-translate
-     (make-shadow-tree :prefix (list "fasls" lang-string))
+     (make-shadow-tree :prefix `("vernacular" ,version "fasls"))
      (pathname-directory-pathname current-dir))))
 
-(defun faslize (lang pathname)
-  (etypecase-of lang lang
-    (package
-     (~> lang
-         package-name-keyword
-         (faslize pathname)))
-    (lang-name
-     (path-join (lang-fasl-dir lang pathname)
-                (make-pathname :name (pathname-name pathname)
-                               :type fasl-ext)))))
+(defun faslize (pathname)
+  (make-pathname :defaults (fasl-dir pathname)
+                 :name (pathname-name pathname)
+                 :type fasl-ext))
 
 (defun fasl? (pathname)
   (let ((type (pathname-type pathname)))
     (and (stringp type)
          (string= type fasl-ext))))
 
-(defun load-module (lang source)
+(defun load-module (source)
   (ensure-pathnamef source)
   (let ((*base* (pathname-directory-pathname source)))
-    (load-fasl-lang lang source)))
+    (load-fasl-lang source)))
 
 (defmethod module-static-exports (lang source)
   (check-type source absolute-pathname)
@@ -475,6 +368,11 @@ interoperation with Emacs."
 
 
 ;;; Languages.
+
+(defun resolve-source (source)
+  (let* ((source (resolve-file source))
+         (lang (source-lang source)))
+    (merge-input-defaults lang source)))
 
 ;;; This is a generic function so individual langs can define their
 ;;; own dependencies in :after methods.
@@ -546,20 +444,15 @@ interoperation with Emacs."
                :key key
                :module module))))
 
-(defun load-fasl-lang (lang source)
-  (let ((object-file (faslize lang source)))
+(defun load-fasl-lang (source)
+  (let* ((object-file (faslize source)))
     (restart-case
         (load-as-module object-file)
       (recompile-object-file ()
         :report "Recompile the object file."
         (delete-file-if-exists object-file)
-        (build (module-spec lang source))
-        (load-fasl-lang lang source)))))
-
-(defmethod lang-deps ((lang package) (source cl:pathname))
-  (let* ((pat (fasl-lang-pattern lang source))
-         (ref (pattern-ref pat source)))
-    (depends-on ref)))
+        (build (fasl-lang-pattern-ref source))
+        (load-fasl-lang source)))))
 
 (defun lang-name (lang)
   (assure keyword
@@ -568,56 +461,51 @@ interoperation with Emacs."
       (lang-name (make-keyword lang))
       (package (make-keyword (package-name lang))))))
 
-;;; This can't use `defpattern', for bootstrapping reasons.
-
 (defclass fasl-lang-pattern (pattern)
-  ((lang :initarg :lang
-         :initform (required-argument :lang))
-   (source :initarg :source))
-  (:documentation "Pattern for building a fasl from a file. Note that
-instances of this pattern must be parameterized with a language."))
+  ())
 
-(defmethod target-extensions ((p fasl-lang-pattern))
-  '(:vernacular))
-
-(defmethods fasl-lang-pattern (self lang source)
-  (:method pattern.output-defaults (self)
-    (faslize lang source))
-
-  (:method pattern-name (self)
-    `(fasl-lang-pattern
-      ,(maybe-delay-symbol (lang-name lang))
-      ,source))
-
-  (:method pattern-build (self)
-    (let* ((*source* *input*)
-           (lang (lang-name lang))
+(defmethods fasl-lang-pattern (self)
+  (:method pattern-build (self source output)
+    (let* ((lang (source-lang source))
+           (*source* source)
            (*language* lang)
            ;; Must be bound here for macros that intern
            ;; symbols.
            (*package* (user-package (resolve-package lang)))
            (*base* (pathname-directory-pathname *source*)))
-      (depends-on-vernacular)
-      (depends-on *source*)
+      (assert (file-exists-p source))
+      ;; Depend on the source file.
+      (depends-on source)
+      ;; Depend on the computed language.
+      (depends-on (language-oracle lang))
+      ;; Let the language tell you what to depend on.
+      (lang-deps lang source)
       (compile-to-file
        (wrap-current-module
         (expand-module lang *input*)
-        lang *input*)
+        lang output)
        (ensure-directories-exist *output*)
        :top-level (package-compile-top-level? lang)
-       :source *source*))))
+       :source *source*)
+      ;; XXX There really should be an in-Lisp binding that is
+      ;; rebuil, instead of the module cell being side-effected.
+      (unload-module source)))
 
-(defun depends-on-vernacular ()
-  "Depend on the version of Vernacular itself."
-  (depends-on
-   (overlord/oracle:system-version-oracle :vernacular)))
+  ;; TODO merge-input-defaults using the language?
+  (:method merge-input-defaults (self source)
+    (resolve-source source))
 
-(defun fasl-lang-pattern (lang source)
-  (let ((lang (force-symbol lang)))
-    (make 'fasl-lang-pattern :lang lang :source source)))
+  (:method merge-output-defaults (self source)
+    (faslize source)))
 
-(defun fasl-lang-pattern-ref (lang source)
-  (pattern-ref (fasl-lang-pattern lang source) source))
+(defclass language-oracle (overlord/oracle:name-oracle)
+  ())
+
+(defun language-oracle (lang)
+  (make 'language-oracle :key (lang-name lang)))
+
+(defun fasl-lang-pattern-ref (source)
+  (pattern-ref (make 'fasl-lang-pattern) source))
 
 (defmacro with-input-from-source ((stream source) &body body)
   "Read from SOURCE, skipping any #lang declaration."
@@ -790,7 +678,7 @@ This should be a superset of the variables bound by CL during calls to
           module-form)))))
 
 (defun expand-module* (source)
-  (expand-module (guess-lang source) source))
+  (expand-module (source-lang source) source))
 
 (defun expand-module-for-emacs (lang source)
   (setf lang (resolve-lang lang))
@@ -866,8 +754,23 @@ the #lang declaration ends."
         (values (lookup-hash-lang lang) pos)
         (values nil 0))))
 
-(defun guess-lang (file)
-  (values (guess-lang+pos file)))
+(defun guess-lang (source)
+  (values (guess-lang+pos source)))
+
+(defcondition source-without-lang (vernacular-error)
+  ((source :initarg :source :type pathname))
+  (:report (lambda (self stream)
+             (with-slots (source) self
+               (format stream "Source file ~a does not specify a ~
+         language. You will have to specify a language when ~
+         importing instead." source)))))
+
+(defun source-lang (source &optional (default *default-language*))
+  (let ((source (resolve-file source)))
+    (lang-name
+     (or (guess-lang source)
+         default
+         (error 'source-without-lang :source source)))))
 
 (defun guess-source (lang alias)
   (~>> (etypecase-of import-alias alias
@@ -901,8 +804,8 @@ the #lang declaration ends."
     `(module-progn-in ,(package-name-keyword package)
        ,@forms)))
 
-(define-script-keyword-macro :module (lang source)
+(define-script-keyword-macro :module (source)
   ;; Is (base) right?
-  `(module-spec ',lang
-                (resolve-target (ensure-pathname ,source)
-                                ,(base))))
+  `(fasl-lang-pattern-ref
+    (resolve-file (ensure-pathname ,source)
+                  ,(base))))
