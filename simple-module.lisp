@@ -6,6 +6,7 @@
   (:import-from :vernacular/module :make-module)
   (:import-from :vernacular/parsers :slurp-stream :slurp-file)
   (:import-from :vernacular/importing :with-imports)
+  (:shadow :read-module :module-progn)
   (:export
    :read-module :module-progn
    :simple-module

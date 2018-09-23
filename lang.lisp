@@ -32,8 +32,10 @@
     :*output*)
   (:import-from :vernacular/specials
     :*language*
-    :*default-language*
+    :*default-lang*
     :*source*)
+  (:import-from :vernacular/parsers
+    :slurp-stream)
   (:export
    :lang :lang-name :hash-lang-name
    :load-module
@@ -63,8 +65,9 @@
    :guess-source
    :source-lang
    :resolve-lang
-   :fasl-lang-pattern-ref
-   :registered-lang))
+   :registered-lang
+   :guess-lang
+   :module-spec))
 (in-package :vernacular/lang)
 
 
@@ -279,7 +282,7 @@ if it does not exist."
     (module-ref module :default)))
 
 (defun dynamic-require-as (lang source &key force)
-  (let* ((*default-language* (and lang (lang-name lang)))
+  (let* ((*default-lang* (and lang (lang-name lang)))
          (source (resolve-source source)))
     (when force
       (dynamic-unrequire source))
@@ -371,8 +374,12 @@ interoperation with Emacs."
 
 (defun resolve-source (source)
   (let* ((source (resolve-file source))
-         (lang (source-lang source)))
-    (merge-input-defaults lang source)))
+         (type (pathname-type source)))
+    (if (and (stringp type)
+             (> (length type) 0))
+        source
+        (let ((lang (source-lang source)))
+          (merge-input-defaults lang source)))))
 
 ;;; This is a generic function so individual langs can define their
 ;;; own dependencies in :after methods.
@@ -477,7 +484,7 @@ interoperation with Emacs."
       ;; Depend on the source file.
       (depends-on source)
       ;; Depend on the computed language.
-      (depends-on (language-oracle lang))
+      (depends-on (language-oracle source))
       ;; Let the language tell you what to depend on.
       (lang-deps lang source)
       (compile-to-file
@@ -498,11 +505,17 @@ interoperation with Emacs."
   (:method merge-output-defaults (self source)
     (faslize source)))
 
-(defclass language-oracle (overlord/oracle:name-oracle)
-  ())
+(declaim (notinline source-lang-for-oracle))
+(defun source-lang-for-oracle (source)
+  (assure keyword
+    (source-lang source)))
 
-(defun language-oracle (lang)
-  (make 'language-oracle :key (lang-name lang)))
+(defun language-oracle (source)
+  (overlord:function-oracle 'source-lang-for-oracle source))
+
+(defun module-spec (lang source)
+  (let ((*default-lang* (or lang *default-lang*)))
+    (fasl-lang-pattern-ref source)))
 
 (defun fasl-lang-pattern-ref (source)
   (pattern-ref (make 'fasl-lang-pattern) source))
@@ -572,11 +585,7 @@ instead."
 
 (defun cl-read-module (source stream)
   (declare (ignore source))
-  (let ((eof "eof"))
-    `(progn
-       ,@(loop for form = (read stream nil eof)
-               until (eq form eof)
-               collect form))))
+  `(progn ,@(slurp-stream stream)))
 
 (defun package-compile-top-level? (package)
   (and-let* ((sym (find-symbol compile-top-level-string package))
@@ -765,7 +774,7 @@ the #lang declaration ends."
          language. You will have to specify a language when ~
          importing instead." source)))))
 
-(defun source-lang (source &optional (default *default-language*))
+(defun source-lang (source &optional (default *default-lang*))
   (let ((source (resolve-file source)))
     (lang-name
      (or (guess-lang source)

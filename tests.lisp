@@ -2,6 +2,7 @@
     (:use :FiveAM :vernacular/import-set)
   (:mix :vernacular/shadows :serapeum :alexandria)
   (:import-from :overlord/tests :with-temp-db :touch)
+  (:import-from :vernacular/lang :module-spec)
   (:import-from :vernacular :with-imports :require-as
     :with-import-default :require-default)
   ;; Languages.
@@ -31,6 +32,15 @@
   (with-input-from-string (in (fmt "#!/bin/sh~%#lang sh"))
     (vernacular/hash-lang-syntax:stream-hash-lang in)))
 
+;;; Regressions.
+
+
+(test pattern-identity
+  (is (eql :equal
+           (fset:compare (module-spec :cl "tests/no-lang/no-lang.lsp")
+                         (module-spec :cl "tests/no-lang/no-lang.lsp")))))
+
+
 ;;; JS demo.
 
 (test js-demo
@@ -53,9 +63,9 @@
 ;;         (fact 20)))))
 
 (test import-default-as-function
-      (is (= 2432902008176640000
-             (with-import-default (#'fact :from "tests/import-as-function.lsp" :once nil)
-               (fact 20)))))
+  (is (= 2432902008176640000
+         (with-import-default (#'fact :from "tests/import-as-function.lsp" :once nil)
+           (fact 20)))))
 
 ;;; Prefixes and renaming.
 
@@ -327,3 +337,31 @@
   (require-as nil #1="tests/islisp/phasing.lsp")
   (with-imports* (m :from #1# :binding (#'inc-count))
     (is (= (inc-count) 0))))
+
+;;; Includes.
+
+(test include-default-lang
+  "Test that, when a module includes a file with no hash lang, the
+language of the original module is propagated."
+  (with-import-default (hello :from "tests/include/includer.lsp")
+    (is (equal hello "Hello"))))
+
+(test include-overrides-lang
+  "Test that, when a module includes a file with a hash lang, the
+hash lang of the included file is ignored."
+  (with-import-default (hello :from "tests/include/lang-includer.lsp")
+    (is (equal hello "Hello"))))
+
+;;; Specifying languages at import time.
+
+(test specify-import-lang
+  "Check that the module gets loaded consistently."
+  (let* ((file "tests/no-lang/no-lang.lsp")
+         (n1 (require-default :vernacular/simple-module file))
+         (n2 (require-default :vernacular/simple-module file))
+         (n3 (require-default :vernacular/tests.simple-module file))
+         (n4 (require-default :vernacular/simple-module file)))
+    (is (= n1 n2))
+    (is (/= n2 n3))
+    (is (/= n4 n3))
+    (is (/= n4 n2))))
