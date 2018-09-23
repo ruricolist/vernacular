@@ -24,6 +24,18 @@
 (defcondition vernacular-error (overlord-error)
   ())
 
+(defun vernacular-error (format-control &rest format-arguments)
+  (error 'vernacular-error
+         :format-control format-control
+         :format-arguments format-arguments))
+
+(define-compiler-macro vernacular-error (&whole call
+                                                format-control &rest format-arguments)
+  (if (stringp format-control)
+      `(vernacular-error (formatter ,format-control)
+                         ,@format-arguments)
+      call))
+
 (defconst cl-constants
   (collecting
     (do-external-symbols (s :cl)
