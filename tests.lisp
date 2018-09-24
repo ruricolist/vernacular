@@ -354,13 +354,27 @@ hash lang of the included file is ignored."
 
 ;;; Specifying languages at import time.
 
+(defpackage :vernacular/tests.cl
+  (:use :cl)
+  (:export :module-progn :read-module))
+
+(defmacro vernacular/tests.cl:module-progn (&body body)
+  `(progn ,@body))
+
+(defun vernacular/tests.cl:read-module (source stream)
+  (declare (ignore source))
+  `(progn
+     ,@(vernacular:slurp-stream stream)))
+
 (test specify-import-lang
-  "Check that the module gets loaded consistently."
+  "Check that a language can be specified when importing for a file
+that does not specify its language, and that changing the language is
+sufficient to cause a module to be recompiled."
   (let* ((file "tests/no-lang/no-lang.lsp")
-         (n1 (require-default :vernacular/simple-module file))
-         (n2 (require-default :vernacular/simple-module file))
-         (n3 (require-default :vernacular/tests.simple-module file))
-         (n4 (require-default :vernacular/simple-module file)))
+         (n1 (require-default :cl file))
+         (n2 (require-default :cl file))
+         (n3 (require-default :vernacular/tests.cl file))
+         (n4 (require-default :cl file)))
     (is (= n1 n2))
     (is (/= n2 n3))
     (is (/= n4 n3))
