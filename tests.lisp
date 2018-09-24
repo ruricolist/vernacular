@@ -1,10 +1,13 @@
 (uiop/package:define-package :vernacular/tests
     (:use :FiveAM :vernacular/import-set)
   (:mix :vernacular/shadows :serapeum :alexandria)
+  (:import-from :overlord :resolve-file)
   (:import-from :overlord/tests :with-temp-db :touch)
   (:import-from :vernacular/lang :module-spec)
   (:import-from :vernacular :with-imports :require-as
     :with-import-default :require-default)
+  (:import-from :vernacular/file-local
+    :file-emacs-mode)
   ;; Languages.
   (:import-from :vernacular/demo/js)
   ;; (:import-from :vernacular/lang/sweet-exp)
@@ -28,18 +31,42 @@
   `(with-imports (,mod ,@args :once nil)
      ,@body))
 
-(test skip-shebang
-  (with-input-from-string (in (fmt "#!/bin/sh~%#lang sh"))
-    (vernacular/hash-lang-syntax:stream-hash-lang in)))
-
 ;;; Regressions.
 
+(def-suite regressions :in vernacular)
+
+(in-suite regressions)
 
 (test pattern-identity
   (is (eql :equal
            (fset:compare (module-spec :cl "tests/no-lang/no-lang.lsp")
                          (module-spec :cl "tests/no-lang/no-lang.lsp")))))
 
+(in-suite vernacular)
+
+;;; Parsing file syntax.
+
+(def-suite file-syntax :in vernacular)
+
+(in-suite file-syntax)
+
+(test hash-lang-skip-shebang
+  (with-input-from-string (in (fmt "#!/bin/sh~%#lang sh"))
+    (vernacular/hash-lang-syntax:stream-hash-lang in)))
+
+(test file-locals-simple
+  (let ((file (resolve-file "tests/file-locals/simple.el")))
+    (is (equal "Emacs-Lisp" (file-emacs-mode file)))))
+
+(test file-locals-hairy
+  (let ((file (resolve-file "tests/file-locals/hairy.lisp")))
+    (is (equal "Lisp" (file-emacs-mode file)))))
+
+(test file-locals-shebang
+  (let ((file (resolve-file "tests/file-locals/shebang.el")))
+    (is (equal "Emacs-Lisp" (file-emacs-mode file)))))
+
+(in-suite vernacular)
 
 ;;; JS demo.
 
@@ -52,9 +79,9 @@
 ;;; Meta-languages.
 
 (test s-exp
-      (is (= 42
-             (with-import-default (answer :from "tests/s-exp-test.sexp" :once nil)
-               answer))))
+  (is (= 42
+         (with-import-default (answer :from "tests/s-exp-test.sexp" :once nil)
+           answer))))
 
 ;; (test sweet-exp
 ;;   (is
