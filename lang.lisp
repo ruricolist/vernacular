@@ -348,9 +348,8 @@ interoperation with Emacs."
                  :type fasl-ext))
 
 (defun fasl? (pathname)
-  (let ((type (pathname-type pathname)))
-    (and (stringp type)
-         (string= type fasl-ext))))
+  (equal (pathname-type pathname)
+         fasl-ext))
 
 (defun load-module (source)
   (ensure-pathnamef source)
