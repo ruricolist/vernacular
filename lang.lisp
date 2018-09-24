@@ -372,13 +372,7 @@ interoperation with Emacs."
 ;;; Languages.
 
 (defun resolve-source (source)
-  (let* ((source (resolve-file source))
-         (type (pathname-type source)))
-    (if (and (stringp type)
-             (> (length type) 0))
-        source
-        (let ((lang (source-lang source)))
-          (merge-input-defaults lang source)))))
+  (resolve-file source))
 
 ;;; This is a generic function so individual langs can define their
 ;;; own dependencies in :after methods.
@@ -391,17 +385,7 @@ interoperation with Emacs."
   (:method ((lang symbol) (source t))
     (lang-deps (resolve-lang-package lang) source)))
 
-(defmethod pattern.input-defaults ((lang symbol))
-  (let ((p (resolve-package lang)))
-    (if p (pattern.input-defaults p) *nil-pathname*)))
-
-(defmethod pattern.input-defaults ((p package))
-  (extension
-   (let ((sym (find-symbol #.(string 'extension) p)))
-     (or (and sym (symbol-value sym))
-         *nil-pathname*))))
-
-(defmacro define-loader-language (package-name (source) &body (reader &key extension))
+(defmacro define-loader-language (package-name (source) &body (reader &rest keys &key &allow-other-keys))
   (let* ((pn (string package-name)))
     ;; Sanity check: are we overwriting an existing package?
     (when-let (package (find-package pn))
@@ -417,10 +401,11 @@ interoperation with Emacs."
          (:export ,@(loader-language-exports)))
        (define-loader-language-1 ,pn (,source)
          ,reader
-         :extension ,extension))))
+         ,@keys))))
 
-(defmacro define-loader-language-1 (package-name (source) &body (reader &key extension))
+(defmacro define-loader-language-1 (package-name (source) &body (reader &rest keys &key &allow-other-keys))
   "The part that gets expanded once PACKAGE-NAME exists."
+  (declare (ignore keys))
   (let ((p (find-package package-name)))
     (unless (packagep p)
       (error "This macro cannot expand until package ~a exists."
@@ -428,12 +413,11 @@ interoperation with Emacs."
     (let ((syms (mapcar (op (find-symbol (string _) p))
                         (loader-language-exports)))
           (keyword (make-keyword package-name)))
-      (destructuring-bind (load read ext script) syms
+      (destructuring-bind (load read script) syms
         `(progn
            (declaim (notinline ,load ,read))
            (eval-always
              (define-script ,script ,reader)
-             (defparameter ,ext (extension ,extension))
              (defun ,load (,source)
                (default-export-module ,reader))
              (defun ,read (,source _stream)
@@ -473,13 +457,15 @@ interoperation with Emacs."
 (defmethods fasl-lang-pattern (self)
   (:method pattern-build (self source output)
     (let* ((lang (source-lang source))
+           (source (resolve-source source))
            (*source* source)
            (*language* lang)
            ;; Must be bound here for macros that intern
            ;; symbols.
            (*package* (user-package (resolve-package lang)))
            (*base* (pathname-directory-pathname *source*)))
-      (assert (file-exists-p source))
+      (assert (file-exists-p source) ()
+              "File ~a does not exist" source)
       ;; Depend on the source file.
       (depends-on source)
       ;; Depend on the computed language.
@@ -534,7 +520,6 @@ interoperation with Emacs."
 (def loader-language-exports
   (list (string 'load)
         reader-string
-        (string 'extension)
         (string 'script)))
 
 ;;; Make it a function so it can be used before defined.
