@@ -68,6 +68,11 @@
 
 (in-suite vernacular)
 
+(test lang-name-no-package
+  (finishes
+    (vernacular/lang:source-lang
+     (resolve-file "tests/no-such-lang.foo"))))
+
 ;;; JS demo.
 
 (test js-demo

@@ -492,6 +492,11 @@ interoperation with Emacs."
 
 (declaim (notinline source-lang-for-oracle))
 (defun source-lang-for-oracle (source)
+  ;; It would be tempting to try to resolve the language name to a
+  ;; package here, in case the language name is a nickname. It would
+  ;; be nice if we could detect that a name points to a different
+  ;; package. But we don't want to require that a language package be
+  ;; loaded in order to load modules compiled using that language.
   (assure keyword
     (source-lang source)))
 
@@ -744,7 +749,7 @@ the #lang declaration ends."
   (receive (lang pos)
       (file-hash-lang file)
     (if (stringp lang)
-        (values (lookup-hash-lang lang) pos)
+        (values (make-keyword (coerce-case lang)) pos)
         (values nil 0))))
 
 (defun guess-lang (source)

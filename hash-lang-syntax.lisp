@@ -12,7 +12,7 @@
 (in-package :vernacular/hash-lang-syntax)
 
 (defun file-hash-lang (file &key (external-format :utf-8))
-  "Return two values: the name of the lang (as a form) and the position to start reading from."
+  "Return two values: the name of the lang (as a string) and the position to start reading from."
   (if (not (file-exists-p file))
       (values nil 0)
       (with-input-from-file (stream file :element-type 'character
