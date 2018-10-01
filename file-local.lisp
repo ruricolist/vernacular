@@ -1,7 +1,8 @@
 (defpackage :vernacular/file-local
   (:documentation "Parse Emacs-style file-local variables.")
   (:use :cl :alexandria :serapeum)
-  (:export :file-locals-alist
+  (:export
+   :file-locals-alist
    :file-emacs-mode))
 (in-package vernacular/file-local)
 
@@ -34,21 +35,16 @@
 
 (defun file-emacs-mode (file)
   (values
-   (assocdr "mode"
-            (file-locals-alist file)
-            :test #'equal)))
+   (assocdr :mode
+            (file-locals-alist file))))
 
 (defun parse-line (string)
   "Parse an alist of file-local-variables from a string."
-  (~>> string
-       isolate-substring
-       parse-substring))
-
-(defun parse-substring (s)
-  "Parse the file-local variables in S."
-  (if (hairy? s)
-      (parse-hairy s)
-      (parse-simple s)))
+  (let* ((s (isolate-substring string))
+         (alist (if (hairy? s)
+                    (parse-hairy s)
+                    (parse-simple s))))
+    (alist-keys-to-keywords alist)))
 
 (defun hairy? (s)
   "Does S contain pairs of variables? (As opposed to a single value,
@@ -93,3 +89,8 @@ which is implicitly interpreted as the mode)."
   "Assuming LINE is the first line of the file, should we skip it?"
   (some (op (string-prefix-p _ line))
         skip-prefixes))
+
+(defun alist-keys-to-keywords (alist)
+  (loop for (key . value) in alist
+        collect (cons (make-keyword (string-invert-case key))
+                      value)))
