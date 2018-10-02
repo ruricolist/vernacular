@@ -66,6 +66,10 @@
   (let ((file (resolve-file "tests/file-locals/shebang.el")))
     (is (equal "Emacs-Lisp" (file-emacs-mode file)))))
 
+(test file-locals-blank
+  (let ((file (resolve-file "tests/blank.txt")))
+    (is (null (file-emacs-mode file)))))
+
 (in-suite vernacular)
 
 (test lang-name-no-package
