@@ -36,6 +36,8 @@
     :*source*)
   (:import-from :vernacular/parsers
     :slurp-stream)
+  (:import-from :vernacular/file-local
+    :file-emacs-mode)
   (:export
    :lang :lang-name :hash-lang-name
    :load-module
@@ -743,14 +745,17 @@ This should be a superset of the variables bound by CL during calls to
                        (coerce-case name))))
       (ensure-lang-exists pkg-name #'lookup-hash-lang))))
 
+
 (defun guess-lang+pos (file)
-  "If FILE has a #lang line, return the lang and the position at which
-the #lang declaration ends."
+  "If FILE has a #lang line (or, failing that, a -*- mode: -*- line),
+return the lang and the position at which the #lang declaration ends."
   (receive (lang pos)
       (file-hash-lang file)
     (if (stringp lang)
         (values (make-keyword (coerce-case lang)) pos)
-        (values nil 0))))
+        (if-let (lang (file-emacs-mode-lang file))
+          (values lang 0)
+          (values nil 0)))))
 
 (defun guess-lang (source)
   (values (guess-lang+pos source)))
@@ -762,6 +767,10 @@ the #lang declaration ends."
                (format stream "Source file ~a does not specify a ~
          language. You will have to specify a language when ~
          importing instead." source)))))
+
+(defun file-emacs-mode-lang (source)
+  (when-let (name (file-emacs-mode source))
+    (make-keyword (string-upcase name))))
 
 (defun source-lang (source &optional (default *default-lang*))
   (let ((source (resolve-file source)))
