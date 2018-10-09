@@ -1,4 +1,5 @@
 (defpackage :vernacular/file-package
+  (:documentation "Generate a unique per-file package.")
   (:use :cl
     :alexandria :serapeum
     :uiop/pathname

@@ -1,4 +1,5 @@
 (defpackage #:vernacular/specials
+  (:documentation "Special variables used throughout.")
   (:use #:cl #:overlord/types)
   (:import-from #:serapeum #:defvar-unbound)
   (:export

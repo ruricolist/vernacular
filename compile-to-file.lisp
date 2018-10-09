@@ -1,5 +1,6 @@
 (defpackage #:vernacular/compile-to-file
   (:use #:cl #:alexandria #:serapeum #:vernacular/specials)
+  (:documentation "Compile a Lisp form into a fasl.")
   (:import-from #:overlord/types #:absolute-pathname)
   (:import-from #:overlord/asdf #:asdf-system-relative-pathname)
   (:import-from #:vernacular/file-package #:ensure-file-package)

@@ -1,5 +1,7 @@
 (uiop:define-package :vernacular/simple-module
     (:use)
+  (:documentation "Reference implementation of a module.
+Most languages will expand into `simple-module' forms.")
   (:mix :serapeum :alexandria :vernacular/shadows :vernacular/types)
   (:import-from :alexandria :mappend)
   (:import-from :serapeum :op :car-safe :keep)

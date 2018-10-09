@@ -1,4 +1,5 @@
 (defpackage :vernacular/importing
+  (:documentation "Macros that handle importing from modules.")
   (:use :cl :alexandria :serapeum
     :overlord/util
     :overlord/redo

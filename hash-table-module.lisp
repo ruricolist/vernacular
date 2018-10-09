@@ -1,4 +1,5 @@
 (defpackage :vernacular/hash-table-module
+  (:documentation "Support hash tables as modules.")
   (:use :cl :alexandria :serapeum)
   (:import-from :overlord/types :error*)
   (:import-from :vernacular/module :module-ref :module-exports)
@@ -6,6 +7,7 @@
 (in-package :vernacular/hash-table-module)
 
 (defun hash-table-module (hash-table)
+  "Wrap HASH-TABLE as a module."
   (lret ((module (copy-hash-table hash-table :test #'eq)))
     (unless (= (hash-table-count module)
                (hash-table-count hash-table))

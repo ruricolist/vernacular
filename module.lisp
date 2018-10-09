@@ -1,4 +1,5 @@
 (defpackage #:vernacular/module
+  (:documentation "The API for lexical modules.")
   (:use #:cl #:alexandria #:serapeum)
   (:import-from #:overlord/types
     #:overlord-error)
