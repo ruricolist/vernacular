@@ -4,10 +4,12 @@
 Most languages will expand into `simple-module' forms.")
   (:mix :serapeum :alexandria :vernacular/shadows :vernacular/types)
   (:import-from :alexandria :mappend)
+  (:import-from :vernacular/types :vernacular-error)
   (:import-from :serapeum :op :car-safe :keep)
   (:import-from :vernacular/module :make-module)
   (:import-from :vernacular/parsers :slurp-stream :slurp-file)
   (:import-from :vernacular/importing :with-imports)
+  (:shadow :read-module :module-progn)
   (:export
    :read-module :module-progn
    :simple-module
@@ -92,5 +94,7 @@ Most languages will expand into `simple-module' forms.")
          (export-bindings (mapcar #'export-binding exports)))
     ;; No duplicate exports.
     (assert (length= export-keys (nub export-keys)))
-    `(ecase ,key
-       ,@(mapcar #'list export-keys export-bindings))))
+    `(case ,key
+       ,@(mapcar #'list export-keys export-bindings)
+       (t (vernacular-error "~a is not exported in this module."
+                            ,key)))))

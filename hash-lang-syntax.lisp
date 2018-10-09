@@ -2,6 +2,7 @@
   (:use :cl :alexandria :serapeum :vernacular/types)
   (:documentation "Parse the #lang line in a module file.")
   (:import-from :overlord/types :error*)
+  (:import-from :uiop :file-exists-p)
   (:export
    :file-hash-lang
    :stream-hash-lang
@@ -12,10 +13,12 @@
 (in-package :vernacular/hash-lang-syntax)
 
 (defun file-hash-lang (file &key (external-format :utf-8))
-  "Return two values: the name of the lang (as a form) and the position to start reading from."
-  (with-input-from-file (stream file :element-type 'character
-                                     :external-format external-format)
-    (stream-hash-lang stream)))
+  "Return two values: the name of the lang (as a string) and the position to start reading from."
+  (if (not (file-exists-p file))
+      (values nil 0)
+      (with-input-from-file (stream file :element-type 'character
+                                         :external-format external-format)
+        (stream-hash-lang stream))))
 
 (-> stream-hash-lang (stream)
     (values (or null string) (integer 0 *)))

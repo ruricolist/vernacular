@@ -2,6 +2,7 @@
     (:use)
   (:mix :vernacular/shadows :alexandria :serapeum)
   (:import-from :vernacular :with-meta-language :module-progn-in)
+  (:shadow :read-module :module-progn)
   (:export :read-module :module-progn))
 
 (in-package :vernacular/lang/s-exp)

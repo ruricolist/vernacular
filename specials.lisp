@@ -9,7 +9,8 @@
    #:*program*
    #:*program-preamble*
    #:*language*
-   #:*source*))
+   #:*source*
+   #:*default-lang*))
 (in-package #:vernacular/specials)
 
 (defvar-unbound *source* "Source file being compiled.")
@@ -27,3 +28,7 @@ has to see before the other forms.")
 
 (defvar-unbound *language* "The name (symbol) of the current language.")
 (declaim (type symbol *language*))
+
+(defvar *default-lang* nil
+  "The name (symbol) of the language to use if the module file does not specify a language.")
+(declaim (type symbol *default-lang*))

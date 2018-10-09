@@ -22,4 +22,5 @@
    :vernacular/lang
    :vernacular/import-set
    :vernacular/importing
-   :vernacular/parsers))
+   :vernacular/parsers
+   :vernacular/include))

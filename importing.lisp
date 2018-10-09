@@ -17,6 +17,8 @@
   (:import-from :overlord/types
     :error*
     :absolute-pathname)
+  (:import-from :overlord/freeze
+    :*before-hard-freeze-hook*)
   (:import-from :vernacular/types
     :vernacular-error)
   (:import-from :vernacular/shadows)
@@ -77,16 +79,20 @@
   "Table to track claimed modules, so we can warn if they are
   redefined.")
 
-(defun claim-module-name (module lang source)
-  "Warn if MODULE is already in use with a different LANG and SOURCE."
+(defun claim-module-name (module source)
+  "Warn if MODULE is already bound to a different LANG."
   (synchronized ()
     (let* ((table *claimed-module-names*)
-           (old-value (gethash module table))
-           (new-value (list lang source)))
+           (old-value (gethash module table)))
       (when old-value
-        (unless (equal old-value new-value)
-          (warn "~s was claimed for ~a in ~a" module source lang)))
-      (setf (gethash module table) new-value))))
+        (unless (equal old-value source)
+          (warn "~s was claimed for ~a" module source)))
+      (setf (gethash module table) source))))
+
+(defun clear-claimed-module-names ()
+  (clrhash (symbol-value '*claimed-module-names*)))
+
+(add-hook '*before-hard-freeze-hook* 'hard-freeze-modules)
 
 (defun lang+source (lang source module base &optional env)
   (setf source (macroexpand source env)) ;Allow a symbol macro as the source.
@@ -102,7 +108,7 @@
       ((and source (no lang))
        (let ((source (resolve-source source)))
          (values (resolve-lang
-                  (or (guess-lang+pos source)
+                  (or (guess-lang source)
                       (required-argument :as)))
                  source)))
       ;; We have the language, but not the source.
@@ -145,9 +151,8 @@
                            :bindings bindings
                            :prefix prefix
                            :env env)
-    ;; Warn if MODULE is already in use with an incompatible language
-    ;; and source.
-    (claim-module-name module lang source)
+    ;; Warn if MODULE is already in use with another file.
+    (claim-module-name module source)
     `(progn
        (import-module ,module
          :as ,lang
@@ -231,7 +236,7 @@ actually exported by the module specified by LANG and SOURCE."
               (check-exports source bindings exports))
           (recompile-object-file ()
             :report "Recompile the object file."
-            (let ((object-file (faslize lang source))
+            (let ((object-file (faslize source))
                   (target (module-spec lang source)))
               (delete-file-if-exists object-file)
               (build target)

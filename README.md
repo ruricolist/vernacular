@@ -64,10 +64,9 @@ special first line. The special first line looks like this:
 This is called (following Racket) a *hash lang*.
 
 The language of a module can also be specified as part of the import
-syntax. This is important: since the language is not an inherent part
-of the file, the same file can be loaded as a module in more than one
-language. And each language-file combination gets its own, completely
-independent module.
+syntax. This is useful for files that need to be edited with
+specialized tools that don’t know how to handle hash langs. If there
+is a hash lang, however, it takes precedence.
 
 # Languages
 

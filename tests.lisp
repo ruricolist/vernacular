@@ -2,9 +2,13 @@
     (:use :FiveAM :vernacular/import-set)
   (:documentation "Test suite for Vernacular.")
   (:mix :vernacular/shadows :serapeum :alexandria)
+  (:import-from :overlord :resolve-file)
   (:import-from :overlord/tests :with-temp-db :touch)
+  (:import-from :vernacular/lang :module-spec)
   (:import-from :vernacular :with-imports :require-as
     :with-import-default :require-default)
+  (:import-from :vernacular/file-local
+    :file-emacs-mode)
   ;; Languages.
   (:import-from :vernacular/demo/js)
   ;; (:import-from :vernacular/lang/sweet-exp)
@@ -28,9 +32,51 @@
   `(with-imports (,mod ,@args :once nil)
      ,@body))
 
-(test skip-shebang
+;;; Regressions.
+
+(def-suite regressions :in vernacular)
+
+(in-suite regressions)
+
+(test pattern-identity
+  (is (eql :equal
+           (fset:compare (module-spec :cl "tests/no-lang/no-lang.lsp")
+                         (module-spec :cl "tests/no-lang/no-lang.lsp")))))
+
+(in-suite vernacular)
+
+;;; Parsing file syntax.
+
+(def-suite file-syntax :in vernacular)
+
+(in-suite file-syntax)
+
+(test hash-lang-skip-shebang
   (with-input-from-string (in (fmt "#!/bin/sh~%#lang sh"))
     (vernacular/hash-lang-syntax:stream-hash-lang in)))
+
+(test file-locals-simple
+  (let ((file (resolve-file "tests/file-locals/simple.el")))
+    (is (equal "Emacs-Lisp" (file-emacs-mode file)))))
+
+(test file-locals-hairy
+  (let ((file (resolve-file "tests/file-locals/hairy.lisp")))
+    (is (equal "Lisp" (file-emacs-mode file)))))
+
+(test file-locals-shebang
+  (let ((file (resolve-file "tests/file-locals/shebang.el")))
+    (is (equal "Emacs-Lisp" (file-emacs-mode file)))))
+
+(test file-locals-blank
+  (let ((file (resolve-file "tests/blank.txt")))
+    (is (null (file-emacs-mode file)))))
+
+(in-suite vernacular)
+
+(test lang-name-no-package
+  (finishes
+    (vernacular/lang:source-lang
+     (resolve-file "tests/no-such-lang.foo"))))
 
 ;;; JS demo.
 
@@ -43,9 +89,9 @@
 ;;; Meta-languages.
 
 (test s-exp
-      (is (= 42
-             (with-import-default (answer :from "tests/s-exp-test.sexp" :once nil)
-               answer))))
+  (is (= 42
+         (with-import-default (answer :from "tests/s-exp-test.sexp" :once nil)
+           answer))))
 
 ;; (test sweet-exp
 ;;   (is
@@ -54,9 +100,9 @@
 ;;         (fact 20)))))
 
 (test import-default-as-function
-      (is (= 2432902008176640000
-             (with-import-default (#'fact :from "tests/import-as-function.lsp" :once nil)
-               (fact 20)))))
+  (is (= 2432902008176640000
+         (with-import-default (#'fact :from "tests/import-as-function.lsp" :once nil)
+           (fact 20)))))
 
 ;;; Prefixes and renaming.
 
@@ -91,7 +137,6 @@
       (delete-package pkg))
     (eval `(vernacular:import-as-package ,pkg
              :from "tests/islisp/exports.lsp"
-             :as :core-lisp
              :binding (x #'y (macro-function z))))
     (is-true (find-package pkg))
     (is (equal '(:var :fn :macro)
@@ -326,6 +371,48 @@
 
 (test islisp-phasing
   "Test that state is not preserved across rebuilds."
-  (require-as :core-lisp #1="tests/islisp/phasing.lsp")
+  (require-as nil #1="tests/islisp/phasing.lsp")
   (with-imports* (m :from #1# :binding (#'inc-count))
     (is (= (inc-count) 0))))
+
+;;; Includes.
+
+(test include-default-lang
+  "Test that, when a module includes a file with no hash lang, the
+language of the original module is propagated."
+  (with-import-default (hello :from "tests/include/includer.lsp")
+    (is (equal hello "Hello"))))
+
+(test include-overrides-lang
+  "Test that, when a module includes a file with a hash lang, the
+hash lang of the included file is ignored."
+  (with-import-default (hello :from "tests/include/lang-includer.lsp")
+    (is (equal hello "Hello"))))
+
+;;; Specifying languages at import time.
+
+(defpackage :vernacular/tests.cl
+  (:use :cl)
+  (:export :module-progn :read-module))
+
+(defmacro vernacular/tests.cl:module-progn (&body body)
+  `(progn ,@body))
+
+(defun vernacular/tests.cl:read-module (source stream)
+  (declare (ignore source))
+  `(progn
+     ,@(vernacular:slurp-stream stream)))
+
+(test specify-import-lang
+  "Check that a language can be specified when importing for a file
+that does not specify its language, and that changing the language is
+sufficient to cause a module to be recompiled."
+  (let* ((file "tests/no-lang/no-lang.lsp")
+         (n1 (require-default :cl file))
+         (n2 (require-default :cl file))
+         (n3 (require-default :vernacular/tests.cl file))
+         (n4 (require-default :cl file)))
+    (is (= n1 n2))
+    (is (/= n2 n3))
+    (is (/= n4 n3))
+    (is (/= n4 n2))))
