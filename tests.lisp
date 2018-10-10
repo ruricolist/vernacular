@@ -70,6 +70,10 @@
   (let ((file (resolve-file "tests/blank.txt")))
     (is (null (file-emacs-mode file)))))
 
+(test file-locals-none
+  (let ((file (resolve-file "tests/no-lang/no-lang.lsp")))
+    (is (null (file-emacs-mode file)))))
+
 (in-suite vernacular)
 
 (test lang-name-no-package

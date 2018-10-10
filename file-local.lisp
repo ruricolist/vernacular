@@ -40,10 +40,10 @@
 
 (defun parse-line (string)
   "Parse an alist of file-local-variables from a string."
-  (let* ((s (isolate-substring string))
-         (alist (if (hairy? s)
-                    (parse-hairy s)
-                    (parse-simple s))))
+  (when-let* ((s (isolate-substring string))
+              (alist (if (hairy? s)
+                         (parse-hairy s)
+                         (parse-simple s))))
     (alist-keys-to-keywords alist)))
 
 (defun hairy? (s)
