@@ -1,5 +1,6 @@
 (defpackage :vernacular/hash-lang-syntax
   (:use :cl :alexandria :serapeum :vernacular/types)
+  (:documentation "Parse the #lang line in a module file.")
   (:import-from :overlord/types :error*)
   (:import-from :uiop :file-exists-p)
   (:export

@@ -1,5 +1,6 @@
 (uiop/package:define-package :vernacular/tests
     (:use :FiveAM :vernacular/import-set)
+  (:documentation "Test suite for Vernacular.")
   (:mix :vernacular/shadows :serapeum :alexandria)
   (:import-from :overlord :resolve-file)
   (:import-from :overlord/tests :with-temp-db :touch)

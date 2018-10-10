@@ -1,4 +1,5 @@
 (defpackage :vernacular/types
+  (:documentation "Types used throughout.")
   (:use :cl :alexandria :serapeum :overlord/types)
   (:export
    #:vernacular-error

@@ -1,4 +1,6 @@
 (defpackage :vernacular/import-set
+  (:documentation "Syntax for import sets.
+Influenced by, but not identical with, the R6RS syntax.")
   (:use :cl :alexandria :serapeum
     :vernacular/types)
   (:import-from :trivia :ematch)

@@ -1,4 +1,6 @@
 (defpackage :vernacular/lang
+  (:documentation "The core of Vernacular: handles parsing, compiling,
+  and loading modules.")
   (:use :cl :alexandria :serapeum
     :local-time
     :uiop/filesystem
