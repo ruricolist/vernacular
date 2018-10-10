@@ -518,15 +518,15 @@ interoperation with Emacs."
      (skip-hash-lang ,stream)
      ,@body))
 
-(def reader-string (string 'read-module))
+(def package-reader-string (string 'read-module))
 
-(def module-string (string 'module-progn))
+(def package-expander-string (string 'module-progn))
 
 (def compile-top-level-string (string '*compile-top-level*))
 
 (def loader-language-exports
   (list (string 'load)
-        reader-string
+        package-reader-string
         (string 'script)))
 
 ;;; Make it a function so it can be used before defined.
@@ -593,7 +593,7 @@ instead."
       (let ((p (resolve-package package)))
         (if (eql p (find-package :cl))
             'cl-read-module
-            (receive (sym status) (find-symbol reader-string p)
+            (receive (sym status) (find-symbol package-reader-string p)
               (cond ((no sym)
                      ;; There is no symbol.
                      (error* "No reader defined in package ~a" p))
@@ -624,7 +624,7 @@ instead."
                (return-from package-expander nil))))
     (assure (or symbol null)
       (let ((p (resolve-package package)))
-        (receive (sym status) (find-symbol module-string p)
+        (receive (sym status) (find-symbol package-expander-string p)
           (cond ((no sym)
                  (error* "No expander defined in package ~a" p))
                 ((not (eql status :external))
