@@ -10,7 +10,7 @@ embed. Vernacular fills this gap.
 
 Vernacular builds on [Overlord][].
 
-# Language examples
+# Examples
 
 Here are some example language embeddings:
 
@@ -35,8 +35,7 @@ Vernacular enables *languages as libraries*. Vernacular languages have
 several important properties:
 
 1. Languages are *first-class*. Modules live in their own files, just
-   like Lisp code, and are compiled into FASLs, just like Lisp
-   code.
+   like Lisp code, and are compiled into FASLs, just like Lisp code.
 
 2. Languages can use *any syntax*. Unlike embedded DSLs, which are
    limited by what can be done with reader macros, full languages can
@@ -44,16 +43,17 @@ several important properties:
 
 3. Languages are *interoperable*. Lisp code can import modules written
    in embedded languages, and modules written in embedded languages
-   can import other modules in the same language – or even modules written in other languages.
+   can import other modules in the same language – or even modules
+   written in other languages.
 
 4. Languages are *reusable*. Support for meta-languages allows
    different languages to share the same parser or for the same
    language to be written in more than one syntax.
 
-# Modules
+# Specifying languages
 
-A Vernacular module is a *file* in a *language*. The language can be
-specified in two ways.
+A Vernacular module is a *file* in a *language*. The language of a
+module file can be specified in three ways.
 
 The language can be specified as part of the file itself, with a
 special first line. The special first line looks like this:
@@ -63,16 +63,38 @@ special first line. The special first line looks like this:
 
 This is called (following Racket) a *hash lang*.
 
-The language of a module can also be specified as part of the import
-syntax. This is useful for files that need to be edited with
-specialized tools that don’t know how to handle hash langs. If there
-is a hash lang, however, it takes precedence.
+The hash lang is the preferred way to specify a language. If you are
+creating a new language with a new syntax, this is what you should
+use. It takes precedence over all other ways of inferring the
+language.
+
+Much of the time, however, you will be re-using an existing syntax.
+Sometimes this is the point, because it lets you employ existing
+tooling like editors, linters, etc. In this case we piggyback on
+Emacs’s syntax for specifying modes, with a special string in the
+first line:
+
+    # -*- mode: my-lang -*-
+
+You can consult the [Emacs manual][] for the details of the syntax.
+
+The advantage of this approach is that the sequence between `-*-`
+markers does not have to appear at the beginning of the file; it can
+be commented out using the appropriate comment syntax. (If the file
+starts with a `#!` shebang, the mode can also be specified in the
+second line; this is also true of hash langs.)
+
+Lastly, the language of a module can be specified as part of the
+import syntax. This lets you use files as modules without having to
+edit them at all, which may be useful for shared files you cannot
+edit.
 
 # Languages
 
 In Vernacular, a language is just a package. The package exports a
-reader and an expander. The symbol named `read-module` is the *package
-reader*. The symbol named `module-progn` is the *package expander*.
+reader and an expander. The function bound to the symbol named
+`read-module` is the *package reader*. The macro bound to the symbol
+named `module-progn` is the *package expander*.
 
 The important thing: when the package’s reader is called, that same
 package is also bound as the *current* package. It is then the
@@ -252,6 +274,7 @@ You might want them again later. -->
 [Quicklisp]: https://www.quicklisp.org/beta/
 [wiki]: https://github.com/ruricolist/overlord/wiki
 [Proctor]: https://github.com/ruricolist/proctor
+[Emacs manual]: https://www.gnu.org/software/emacs/manual/html_node/emacs/Choosing-Modes.html#Choosing-Modes
 
 <!-- NB Don’t remove links, even if they’re not currently being used.
 You might want them again later. -->
