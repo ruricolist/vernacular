@@ -29,9 +29,6 @@
     :*before-hard-freeze-hook*)
   (:import-from :overlord/specials
     :*base*)
-  (:import-from :overlord/specials
-    :*input*
-    :*output*)
   (:import-from :vernacular/specials
     :*language*
     :*default-lang*
@@ -460,8 +457,8 @@ interoperation with Emacs."
 
 (defmethods fasl-lang-pattern (self)
   (:method pattern-build (self source output)
-    (let* ((lang (source-lang source))
-           (source (resolve-source source))
+    (let* ((source (resolve-source source))
+           (lang (source-lang source))
            (*source* source)
            (*language* lang)
            ;; Must be bound here for macros that intern
@@ -478,9 +475,9 @@ interoperation with Emacs."
       (lang-deps lang source)
       (compile-to-file
        (wrap-current-module
-        (expand-module lang *input*)
+        (expand-module lang source)
         lang output)
-       (ensure-directories-exist *output*)
+       (ensure-directories-exist output)
        :top-level (package-compile-top-level? lang)
        :source *source*)
       ;; XXX There really should be an in-Lisp binding that is
