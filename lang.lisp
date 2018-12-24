@@ -485,7 +485,7 @@ interoperation with Emacs."
       (unload-module source)))
 
   ;; TODO merge-input-defaults using the language?
-  (:method merge-input-defaults (self source)
+  (:method merge-input-defaults (self (source pathname))
     (resolve-source source))
 
   (:method merge-output-defaults (self source)
