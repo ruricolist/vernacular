@@ -481,7 +481,7 @@ interoperation with Emacs."
        :top-level (package-compile-top-level? lang)
        :source *source*)
       ;; XXX There really should be an in-Lisp binding that is
-      ;; rebuil, instead of the module cell being side-effected.
+      ;; rebuilt, instead of the module cell being side-effected.
       (unload-module source)))
 
   ;; TODO merge-input-defaults using the language?
