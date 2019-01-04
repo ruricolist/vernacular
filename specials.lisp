@@ -2,6 +2,7 @@
   (:documentation "Special variables used throughout.")
   (:use #:cl #:overlord/types)
   (:import-from #:serapeum #:defvar-unbound)
+  (:import-from #:overlord/specials #:register-worker-special)
   (:export
    #:*input*
    #:*output*
@@ -32,3 +33,4 @@ has to see before the other forms.")
 (defvar *default-lang* nil
   "The name (symbol) of the language to use if the module file does not specify a language.")
 (declaim (type symbol *default-lang*))
+(register-worker-special '*default-lang*)
