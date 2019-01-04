@@ -57,23 +57,22 @@
            (if top-level
                program
                `(setq *module* ,program))))
-    (synchronized ()
-      ;; TODO The following is cribbed from the sources of Slime and Sly.
-      (with-compilation-unit (:allow-other-keys t
-                              ;; SBCL
-                              :source-namestring namestring)
-        (let ((*package* package)
-              (*readtable* (copy-readtable nil)))
-          (compile-file universal-file
-                        :allow-other-keys t
-                        :output-file output-file
-                        :external-format :utf-8
-                        ;; CCL.
-                        :compile-file-original-truename source
-                        ;; ECL.
-                        :source-truename source
-                        ;; Clasp.
-                        :source-debug-namestring namestring))))))
+    ;; The following is cribbed from the sources of Slime and Sly.
+    (with-compilation-unit (:allow-other-keys t
+                            ;; SBCL
+                            :source-namestring namestring)
+      (let ((*package* package)
+            (*readtable* (copy-readtable nil)))
+        (compile-file universal-file
+                      :allow-other-keys t
+                      :output-file output-file
+                      :external-format :utf-8
+                      ;; CCL.
+                      :compile-file-original-truename source
+                      ;; ECL.
+                      :source-truename source
+                      ;; Clasp.
+                      :source-debug-namestring namestring)))))
 
 (defun load-as-module (file)
   "Load FILE and return whatever it assigns to `*module*'."
