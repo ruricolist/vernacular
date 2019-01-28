@@ -68,7 +68,8 @@
    :resolve-lang
    :registered-lang
    :guess-lang
-   :module-spec))
+   :module-spec
+   :module))
 (in-package :vernacular/lang)
 
 
@@ -810,8 +811,7 @@ return the lang and the position at which the #lang declaration ends."
     `(module-progn-in ,(package-name-keyword package)
        ,@forms)))
 
-(define-script-keyword-macro :module (source)
-  ;; Is (base) right?
-  `(fasl-lang-pattern-ref
-    (resolve-file (ensure-pathname ,source)
-                  ,(base))))
+(defun module (source)
+  (~> source
+      resolve-file
+      fasl-lang-pattern-ref))
