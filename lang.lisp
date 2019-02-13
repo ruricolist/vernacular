@@ -457,8 +457,12 @@ interoperation with Emacs."
   ())
 
 (defmethods fasl-lang-pattern (self)
-  (:method pattern-build (self source output)
-    (let* ((source (resolve-source source))
+  (:method pattern-build (self sources outputs)
+    (assert (single sources))
+    (assert (single outputs))
+    (let* ((source (first sources))
+           (output (first outputs))
+           (source (resolve-source source))
            (lang (source-lang source))
            (*source* source)
            (*language* lang)
@@ -486,11 +490,11 @@ interoperation with Emacs."
       (unload-module source)))
 
   ;; TODO merge-input-defaults using the language?
-  (:method merge-input-defaults (self (source pathname))
-    (resolve-source source))
+  (:method merge-input-defaults (self (sources sequence))
+    (map 'list #'resolve-source sources))
 
-  (:method merge-output-defaults (self source)
-    (faslize source)))
+  (:method merge-output-defaults (self (sources sequence))
+    (map 'list #'faslize sources)))
 
 (declaim (notinline source-lang-for-oracle))
 (defun source-lang-for-oracle (source)
