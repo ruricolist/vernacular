@@ -726,20 +726,27 @@ This should be a superset of the variables bound by CL during calls to
          (let ((lang (string-downcase lang)))
            (find-asdf-system lang)))))
 
-(defun ensure-lang-exists (lang &optional (cont #'ensure-lang-exists))
+(defun call/load-same-name-system-restart (fn system)
+  (nlet retry ()
+    (restart-case
+        (funcall fn)
+      (load-same-name-system ()
+        :test maybe-find-asdf-system
+        :report (lambda (s)
+                  (format s "Load the system named ~a and try again" system))
+        (load-asdf-system system)
+        (retry)))))
+
+(defmacro with-load-same-name-system-restart ((system-name) &body body)
+  (with-thunk (body)
+    `(call/load-same-name-system-restart ,body ,system-name)))
+
+(defun ensure-lang-exists (lang)
   (check-type lang package-designator)
-  (check-type cont function)
   (if (packagep lang) lang
       (let ((pkg (resolve-package lang)))
         (or (and pkg (package-name-keyword pkg))
-            (restart-case
-                (error 'no-such-lang :lang lang)
-              (load-same-name-system ()
-                :test maybe-find-asdf-system
-                :report (lambda (s)
-                          (format s "Load the system named ~a and try again" lang))
-                (load-asdf-system lang)
-                (funcall cont lang)))))))
+            (error 'no-such-lang :lang lang)))))
 
 (defun lookup-hash-lang (name)
   (assure (or null lang-name)
@@ -747,8 +754,8 @@ This should be a superset of the variables bound by CL during calls to
                        ;; Set the case as if the string were being
                        ;; read, without using `read`.
                        (coerce-case name))))
-      (ensure-lang-exists pkg-name #'lookup-hash-lang))))
-
+      (with-load-same-name-system-restart (pkg-name)
+        (ensure-lang-exists pkg-name)))))
 
 (defun guess-lang+pos (file)
   "If FILE has a #lang line (or, failing that, a -*- mode: -*- line),
@@ -800,7 +807,15 @@ return the lang and the position at which the #lang declaration ends."
 
 (defun resolve-lang-package (lang)
   (assure package
-    (resolve-package (resolve-lang lang))))
+    (with-load-same-name-system-restart (lang)
+      (nlet retry ()
+        (let ((package (resolve-package (resolve-lang lang))))
+          (if (packagep package) package
+              (restart-case
+                  (error 'no-such-lang :lang lang)
+                (continue ()
+                  :report "Try again"
+                  (retry)))))))))
 
 (defmacro with-meta-language ((path stream) &body body)
   (with-thunk (body path stream)
