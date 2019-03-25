@@ -80,7 +80,7 @@
   redefined.")
 
 (defun claim-module-name (module source)
-  "Warn if MODULE is already bound to a different LANG."
+  "Warn if SOURCE is already bound to a different MODULE."
   (synchronized ()
     (let* ((table *claimed-module-names*)
            (old-value (gethash module table)))
