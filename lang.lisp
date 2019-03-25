@@ -49,6 +49,7 @@
    :read-lang-name
    :require-as :require-default
    :dynamic-require-as :dynamic-require-default :require-once
+   :dynamic-unrequire
    ;; Module protocol.
    :module-meta
 
@@ -301,6 +302,7 @@ if it does not exist."
   (dynamic-unrequire (resolve-source source)))
 
 (defun dynamic-unrequire (source)
+  "Unload the module at SOURCE."
   (check-type source (and absolute-pathname file-pathname))
   (unload-module source)
   (values))

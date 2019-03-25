@@ -152,7 +152,7 @@ that module *at compile time* to get a list of its exports.)
 What Vernacular imports and exports are not values, but bindings. Bindings
 are indirect (and immutable): they refer to the module, rather than to
 the value of the export. This allows for modules to be reloaded at any
-time. It is even possible to unload modules.
+time. It is even possible to unload modules (using `dynamic-unrequire`).
 
 Note that exports in Vernacular, with one exception, form a single
 namespace. This is in order to keep the notation for imports simple.
