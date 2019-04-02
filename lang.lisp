@@ -289,8 +289,7 @@ if it does not exist."
          (source (resolve-source source)))
     (when force
       (dynamic-unrequire source))
-    (depends-on (fasl-lang-pattern-ref source))
-    (ensure-module-loaded source)
+    (depends-on (load-trace-pattern-ref source))
     (find-module source)))
 
 (defun require-once (lang source)
@@ -484,10 +483,7 @@ interoperation with Emacs."
         lang output)
        (ensure-directories-exist output)
        :top-level (package-compile-top-level? lang)
-       :source *source*)
-      ;; XXX There really should be an in-Lisp binding that is
-      ;; rebuilt, instead of the module cell being side-effected.
-      (unload-module source)))
+       :source *source*)))
 
   ;; TODO merge-input-defaults using the language?
   (:method merge-input-defaults (self (sources sequence))
@@ -495,6 +491,32 @@ interoperation with Emacs."
 
   (:method merge-output-defaults (self (sources sequence))
     (map 'list #'faslize sources)))
+
+(defclass load-trace-pattern (pattern)
+  ((extension :initform "load-trace"
+              :allocation :class)))
+
+(defmethods load-trace-pattern (self extension)
+  (:method merge-input-defaults (self (sources sequence))
+    sources)
+  (:method merge-output-defaults (self (sources sequence))
+    (map 'list
+         (op (change-pathname-type (faslize _) extension))
+         sources))
+  (:method pattern-build (self sources traces)
+    (let* ((source (only-elt sources))
+           (trace (only-elt traces)))
+      (depends-on (fasl-lang-pattern-ref source))
+      (unload-module source)
+      (ensure-module-loaded source)
+      (let* ((module (find-module source))
+             (string
+               (with-output-to-string (s)
+                 (print-unreadable-object (module s :type t :identity t)))))
+        (write-file-if-changed string trace)))))
+
+(defun load-trace-pattern-ref (source)
+  (pattern-ref (make 'load-trace-pattern) source))
 
 (declaim (notinline source-lang-for-oracle))
 (defun source-lang-for-oracle (source)
