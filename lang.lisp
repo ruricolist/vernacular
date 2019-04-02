@@ -460,10 +460,8 @@ interoperation with Emacs."
 
 (defmethods fasl-lang-pattern (self)
   (:method pattern-build (self sources outputs)
-    (assert (single sources))
-    (assert (single outputs))
-    (let* ((source (first sources))
-           (output (first outputs))
+    (let* ((source (only-elt sources))
+           (output (only-elt outputs))
            (source (resolve-source source))
            (lang (source-lang source))
            (*source* source)
