@@ -106,9 +106,9 @@ Returns two values: a list of static exports, and a second value that is T if th
   (funcall (__module-exports-table module) module key))
 
 (defun make-module (&key exports exports-table)
-  "Make a module with EXPORTS, a list of symbols, and EXPORTS-TABLE, a
-table that maps from symbols to values."
-  (assert (every #'symbolp exports))
+  "Make a module with EXPORTS, a list of keywords, and EXPORTS-TABLE, a
+table that maps from keywords to values."
+  (assert (every #'keywordp exports))
   (__make-module :exports exports
                  :exports-table exports-table))
 
