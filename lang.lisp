@@ -454,13 +454,6 @@ package."
                (declare (ignore source))
                (depends-on ',script))))))))
 
-(defun loader-language-table (val)
-  (lambda (module key)
-    (if (eql key :default) val
-        (error 'no-such-export
-               :key key
-               :module module))))
-
 (defun load-fasl-lang (source)
   (let* ((object-file (faslize source)))
     (restart-case
