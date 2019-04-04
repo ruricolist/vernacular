@@ -70,7 +70,8 @@
    :registered-lang
    :guess-lang
    :module-spec
-   :module))
+   :module
+   :loaded-modules-alist))
 (in-package :vernacular/lang)
 
 
@@ -222,6 +223,13 @@ resolved at load time."
     (with-slots (timestamp module) cell
       (clear-inline-caches (nix module))
       (setf timestamp never))))
+
+(defun loaded-modules-alist ()
+  "Return an alist of (path . module-object) for all loaded modules."
+  (loop for path being the hash-keys of *module-cells*
+          using (hash-value cell)
+        unless (eql never (module-cell.timestamp cell))
+          collect (cons path (module-cell.module cell))))
 
 (defun ensure-module-loaded (source)
   (ensure-module-cell-loaded (module-cell source)))
