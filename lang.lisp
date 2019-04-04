@@ -398,6 +398,18 @@ interoperation with Emacs."
     (lang-deps (resolve-lang-package lang) source)))
 
 (defmacro define-loader-language (package-name (source) &body (reader &rest keys &key &allow-other-keys))
+  "Define PACKAGE-NAME as a package implementing a very simple language.
+
+When loading SOURCE, with the language package bound as the current
+package, the value returned by READER is used as the module.
+
+E.g. a language that just loaded a text file as a string:
+
+    (define-loader-language :text-file (source)
+      (alexandria:read-file-into-string source))
+
+Does some sanity checking on PACKAGE-NAME to make sure an existing
+package is not overwritten."
   (let* ((pn (string package-name)))
     ;; Sanity check: are we overwriting an existing package?
     (when-let (package (find-package pn))
@@ -416,7 +428,10 @@ interoperation with Emacs."
          ,@keys))))
 
 (defmacro define-loader-language-1 (package-name (source) &body (reader &rest keys &key &allow-other-keys))
-  "The part that gets expanded once PACKAGE-NAME exists."
+  "Auxiliary macro for `define-loader-language'.
+
+The part that can only be expanded once PACKAGE-NAME exists as a
+package."
   (declare (ignore keys))
   (let ((p (find-package package-name)))
     (unless (packagep p)
