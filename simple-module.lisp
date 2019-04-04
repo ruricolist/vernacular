@@ -6,7 +6,7 @@ Most languages will expand into `simple-module' forms.")
   (:import-from :alexandria :mappend)
   (:import-from :vernacular/types :vernacular-error)
   (:import-from :serapeum :op :car-safe :keep)
-  (:import-from :vernacular/module :make-module)
+  (:import-from :vernacular/module :basic-module)
   (:import-from :vernacular/parsers :slurp-stream :slurp-file)
   (:import-from :vernacular/importing :with-imports)
   (:shadow :read-module :module-progn)
@@ -74,9 +74,11 @@ Most languages will expand into `simple-module' forms.")
       ((or macro-spec (tuple macro-spec :as export-alias))
        (error "Simple modules cannot export macros.")))))
 
+(defstruct (simple-module (:include basic-module)))
+
 (defmacro simple-module ((&rest exports) &body body)
   (let ((export-keys (mapcar #'export-keyword exports)))
-    `(make-module
+    `(make-simple-module
       :exports ',export-keys
       :exports-table (mlet ,exports
                        ,@body))))

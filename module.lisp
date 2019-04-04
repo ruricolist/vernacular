@@ -8,7 +8,8 @@
     #:weak-pointer-value)
   (:export
    #:validate-module
-   #:make-module
+   #:basic-module
+   #:make-basic-module
    #:module-ref
    #:module-ref*
    #:module-ref/inline-cache
@@ -94,36 +95,42 @@ Returns two values: a list of static exports, and a second value that is T if th
          :module module
          :key key))
 
-(defstruct-read-only (module (:conc-name __module-)
-                             (:constructor __make-module))
+(defstruct-read-only basic-module
+  "A minimal module, with a list of exports and a function that wraps exports."
   (exports nil :type list)
   (exports-table #'empty-exports-table :type function))
 
-(defmethod module-exports ((module module))
-  (__module-exports module))
+(defmethod module-exports ((module basic-module))
+  (basic-module-exports module))
 
-(defmethod module-ref ((module module) key)
-  (funcall (__module-exports-table module) module key))
+(defmethod module-ref ((module basic-module) key)
+  (funcall (basic-module-exports-table module) module key))
 
-(defun make-module (&key exports exports-table)
-  "Make a module with EXPORTS, a list of keywords, and EXPORTS-TABLE, a
-table that maps from keywords to values."
-  (assert (every #'keywordp exports))
-  (__make-module :exports exports
-                 :exports-table exports-table))
+(defconst default-key :default)
 
-(defun default-export-module (default)
-  "Wrap DEFAULT in a module with a single binding, named `:default',
-with DEFAULT as its value."
-  (make-module
-   :exports '(:default)
-   :exports-table (default-export-table default)))
+(defconst default-export-module-exports
+  (list default-key))
+
+(defstruct-read-only (default-export-module
+                      (:constructor default-export-module (default)))
+  "A module with a single export named :default."
+  default)
+
+(defmethod module-exports ((module default-export-module))
+  default-export-module-exports)
+
+(defmethod module-ref ((module default-export-module) key)
+  (if (eql key default-key)
+      (default-export-module-default module)
+      (error 'no-such-export
+             :module module
+             :key key)))
 
 (defun default-export-table (default)
   "Return an export table with a single binding, `:default', mapped to
 DEFAULT."
   (lambda (module key)
-    (if (eql key :default) default
+    (if (eql key default-key) default
         (error "Module ~a has no export named ~a" module key))))
 
 
@@ -152,7 +159,13 @@ Inlinable, and skips generic dispatch for some common types."
   (typecase module
     (function (funcall module name))
     (hash-table (gethash name module))
-    (module (funcall (__module-exports-table module) module name))
+    (basic-module (funcall (basic-module-exports-table module) module name))
+    (default-export-module
+     (if (eql name default-key)
+         (default-export-module-default module)
+         (error 'no-such-export
+                :module module
+                :key name)))
     (t (module-ref module name))))
 
 (defsubst module-exports* (module)
@@ -160,7 +173,8 @@ Inlinable, and skips generic dispatch for some common types."
 Inlinable, and skips generic dispatch for some common types."
   (declare (optimize . #.flank-speed))
   (typecase module
-    (module (__module-exports module))
+    (basic-module (basic-module-exports module))
+    (default-export-module default-export-module-exports)
     (hash-table (hash-table-keys module))
     (t (module-exports module))))
 
