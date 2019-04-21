@@ -121,7 +121,8 @@
   ((timestamp
     :type target-timestamp
     :initform never
-    :accessor module-cell.timestamp)
+    :accessor module-cell.timestamp
+    :documentation "Timestamp when the module was last updated, for debugging purposes.")
    (source
     :initarg :source
     :type (and file-pathname tame-pathname)
