@@ -298,7 +298,7 @@ if it does not exist."
          (source (resolve-source source)))
     (when force
       (dynamic-unrequire source))
-    (depends-on (fasl-lang-pattern-ref source))
+    (depends-on (compiled-module-target source))
     (ensure-module-loaded source)
     (find-module source)))
 
@@ -365,9 +365,10 @@ interoperation with Emacs."
          fasl-ext))
 
 (defun load-module (source)
+  "Resolve SOURCE and load it as a module."
   (ensure-pathnamef source)
   (let ((*base* (pathname-directory-pathname source)))
-    (load-fasl-lang source)))
+    (load-compiled-module source)))
 
 (defmethod module-static-exports (lang source)
   (check-type source absolute-pathname)
@@ -455,15 +456,18 @@ package."
                (declare (ignore source))
                (depends-on ',script))))))))
 
-(defun load-fasl-lang (source)
+(defun load-compiled-module (source)
+  "Load the compiled version of SOURCE (already resolved) as a module,
+providing a restart to compile it if necessary."
+  (check-type source (and absolute-pathname file-pathname))
   (let* ((object-file (faslize source)))
     (restart-case
         (load-as-module object-file)
       (recompile-object-file ()
         :report "Recompile the object file."
         (delete-file-if-exists object-file)
-        (build (fasl-lang-pattern-ref source))
-        (load-fasl-lang source)))))
+        (build (compiled-module-target source))
+        (load-compiled-module source)))))
 
 (defun lang-name (lang)
   (assure keyword
@@ -528,9 +532,9 @@ package."
 
 (defun module-spec (lang source)
   (let ((*default-lang* (or lang *default-lang*)))
-    (fasl-lang-pattern-ref source)))
+    (compiled-module-target source)))
 
-(defun fasl-lang-pattern-ref (source)
+(defun compiled-module-target (source)
   (pattern-ref (make 'fasl-lang-pattern) source))
 
 (defmacro with-input-from-source ((stream source) &body body)
@@ -850,4 +854,4 @@ return the lang and the position at which the #lang declaration ends."
 (defun module (source)
   (~> source
       resolve-file
-      fasl-lang-pattern-ref))
+      compiled-module-target))
