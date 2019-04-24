@@ -343,10 +343,6 @@ interoperation with Emacs."
   "Wrap `%unrequire', resolving the base at macro-expansion time."
   `(%unrequire ,source ,(base)))
 
-(defun escape-lang-name (lang-name)
-  (check-type lang-name lang-name)
-  (url-encode (string lang-name) :encoding :utf-8))
-
 (defun vernacular-major-version ()
   (version-major-version
    (asdf-system-version "vernacular")))
