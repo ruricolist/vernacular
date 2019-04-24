@@ -294,6 +294,8 @@ if it does not exist."
     (module-ref module :default)))
 
 (defun dynamic-require-as (lang source &key force)
+  "Ensure that the module at SOURCE is loaded, defaulting its language to LANG.
+Passing FORCE will reload the module even if it is already loaded."
   (let* ((*default-lang* (and lang (lang-name lang)))
          (source (resolve-source source)))
     (when force
@@ -349,11 +351,13 @@ interoperation with Emacs."
   (version-major-version
    (asdf-system-version "vernacular")))
 
-(defun fasl-dir (current-dir)
+(defun fasl-dir (file)
+  "Return the directory to output the fasl for FILE to.
+This directory contains the directories of FILE as a suffix."
   (let ((version (princ-to-string (vernacular-major-version))))
     (shadow-tree-translate
      (make-shadow-tree :prefix `("vernacular" ,version "fasls"))
-     (pathname-directory-pathname current-dir))))
+     (pathname-directory-pathname file))))
 
 (defun faslize (pathname)
   (make-pathname :defaults (fasl-dir pathname)
@@ -361,6 +365,7 @@ interoperation with Emacs."
                  :type fasl-ext))
 
 (defun fasl? (pathname)
+  "Does PATHNAME use the extension for a fasl?"
   (equal (pathname-type pathname)
          fasl-ext))
 
