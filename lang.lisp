@@ -356,8 +356,16 @@ This directory contains the directories of FILE as a suffix."
      (pathname-directory-pathname file))))
 
 (defun faslize (pathname)
+  "Get the path to the fasl for PATHNAME.
+The fasl will have whatever the current Lisp's default extension is
+for fasls (`fasl-ext`).
+
+The existing extension of PATHNAME is preserved as suffix to the
+name."
   (make-pathname :defaults (fasl-dir pathname)
-                 :name (pathname-name pathname)
+                 :name (string+ (pathname-name pathname)
+                                "_"
+                                (pathname-type pathname))
                  :type fasl-ext))
 
 (defun fasl? (pathname)
