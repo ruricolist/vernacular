@@ -167,7 +167,7 @@ forever."))
     (string
      `(module-cell ,(ensure-pathname path :want-pathname t)))
     (pathname
-     (let ((path (resolve-source path))) ;Resolve now, while `*base*' is bound.
+     (let ((path (resolve-file path))) ;Resolve now, while `*base*' is bound.
        `(load-time-value
          (locally
              ;; Prevent recursive expansion.
@@ -297,7 +297,7 @@ if it does not exist."
   "Ensure that the module at SOURCE is loaded, defaulting its language to LANG.
 Passing FORCE will reload the module even if it is already loaded."
   (let* ((*default-lang* (and lang (lang-name lang)))
-         (source (resolve-source source)))
+         (source (resolve-file source)))
     (when force
       (dynamic-unrequire source))
     (depends-on (compiled-module-target source))
@@ -305,12 +305,12 @@ Passing FORCE will reload the module even if it is already loaded."
     (find-module source)))
 
 (defun require-once (lang source)
-  (let ((source (resolve-source source)))
+  (let ((source (resolve-file source)))
     (or (find-module source)
         (dynamic-require-as lang source))))
 
 (defun %unrequire (source *base*)
-  (dynamic-unrequire (resolve-source source)))
+  (dynamic-unrequire (resolve-file source)))
 
 (defun dynamic-unrequire (source)
   "Unload the module at SOURCE."
@@ -393,9 +393,6 @@ name."
 
 
 ;;; Languages.
-
-(defun resolve-source (source)
-  (resolve-file source))
 
 ;;; This is a generic function so individual langs can define their
 ;;; own dependencies in :after methods.
@@ -493,7 +490,7 @@ providing a restart to compile it if necessary."
   (:method pattern-build (self sources outputs)
     (let* ((source (only-elt sources))
            (output (only-elt outputs))
-           (source (resolve-source source))
+           (source (resolve-file source))
            (lang (source-lang source))
            (*source* source)
            (*language* lang)
@@ -521,7 +518,7 @@ providing a restart to compile it if necessary."
       (unload-module source)))
 
   (:method merge-input-defaults (self (sources sequence))
-    (map 'list #'resolve-source sources))
+    (map 'list #'resolve-file sources))
 
   (:method merge-output-defaults (self (sources sequence))
     (map 'list #'faslize sources)))
