@@ -14,18 +14,18 @@ Vernacular builds on [Overlord][].
 
 Here are some example language embeddings:
 
-1. [vernacular/demo/js](demo/js.lisp). A simple demo language built
-   on [CL-JavaScript][]. Shows how to convert a pre-existing CL language
+1. [vernacular/demo/js](demo/js.lisp). A simple language built on
+   [CL-JavaScript][]. Shows how to convert a pre-existing CL language
    implementation to work with Vernacular.
 
 2. [Bosom Serpent][]. Shows how to wrap a foreign runtime (Python,
    using [burgled-batteries][]) as an Vernacular module.
 
-3. [cl-yesql][]. Lisp port of Clojure’s [yesql][]. Includes a parser,
-   and shows how (and why) to load the same file in different
-   languages.
+3. [cl-yesql][]. Lisp port of Clojure’s [yesql][]: lets you write SQL
+   queries in separate SQL files, using special comments to guide
+   conversion into Lisp functions. Includes a non-trivial parser.
 
-5. [Core Lisp][]. A hygiene-compatible implementation of the Lisp
+4. [Core Lisp][]. A hygiene-compatible implementation of the Lisp
    dialect [ISLISP][] (itself a conceptual subset of Common Lisp).
    Shows how to use Vernacular to build “language towers.”
 
@@ -275,6 +275,7 @@ You might want them again later. -->
 [wiki]: https://github.com/ruricolist/overlord/wiki
 [Proctor]: https://github.com/ruricolist/proctor
 [Emacs manual]: https://www.gnu.org/software/emacs/manual/html_node/emacs/Choosing-Modes.html#Choosing-Modes
+[CL-PPCRE]: https://edicl.github.io/cl-ppcre/
 
 <!-- NB Don’t remove links, even if they’re not currently being used.
 You might want them again later. -->
