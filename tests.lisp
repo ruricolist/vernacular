@@ -4,7 +4,7 @@
   (:mix :vernacular/shadows :serapeum :alexandria)
   (:import-from :overlord :resolve-file)
   (:import-from :overlord/tests :with-temp-db :touch)
-  (:import-from :vernacular/lang :module-spec)
+  (:import-from :vernacular/lang :compiled-module-target)
   (:import-from :vernacular :with-imports :require-as
     :with-import-default :require-default)
   (:import-from :vernacular/file-local
@@ -39,9 +39,9 @@
 (in-suite regressions)
 
 (test pattern-identity
-  (is (eql :equal
-           (fset:compare (module-spec :cl "tests/no-lang/no-lang.lsp")
-                         (module-spec :cl "tests/no-lang/no-lang.lsp")))))
+      (is (eql :equal
+               (fset:compare (compiled-module-target "tests/no-lang/no-lang.lsp")
+                             (compiled-module-target "tests/no-lang/no-lang.lsp")))))
 
 (in-suite vernacular)
 

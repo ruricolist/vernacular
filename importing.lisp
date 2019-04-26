@@ -237,15 +237,15 @@ actually exported by the module specified by LANG and SOURCE."
           (recompile-object-file ()
             :report "Recompile the object file."
             (let ((object-file (faslize source))
-                  (target (module-spec lang source)))
+                  (target (compiled-module-target source)))
               (delete-file-if-exists object-file)
               (build target)
               (check-static-bindings lang source bindings)))))))
 
-(defmacro declaim-module (as from)
+(defmacro declaim-module (source)
   `(propagate-side-effect
      (ensure-target-recorded
-      (module-spec ,as ,from))))
+      (compiled-module-target ,source))))
 
 (defmacro import-module (module &body (&key as from once))
   "When ONCE is non-nil, the module will only be rebuilt if it has not
@@ -257,7 +257,7 @@ yet been loaded."
               `(require-as ',as ,from))))
     `(progn
        (vernacular/shadows:def ,module ,req-form)
-       (declaim-module ,as ,from)
+       (declaim-module ,from)
        ',module)))
 
 (defmacro import-default (var &body (&key as from))

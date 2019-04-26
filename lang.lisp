@@ -69,7 +69,7 @@
    :resolve-lang
    :registered-lang
    :guess-lang
-   :module-spec
+   :compiled-module-target
    :module
    :loaded-modules-alist))
 (in-package :vernacular/lang)
@@ -538,10 +538,6 @@ providing a restart to compile it if necessary."
 
 (defun language-oracle (source)
   (overlord:function-oracle 'source-lang-for-oracle source))
-
-(defun module-spec (lang source)
-  (let ((*default-lang* (or lang *default-lang*)))
-    (compiled-module-target source)))
 
 (defun compiled-module-target (source)
   (pattern-ref (make 'fasl-lang-pattern) source))
