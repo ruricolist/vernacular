@@ -605,6 +605,8 @@ instead."
   `(progn ,@(slurp-stream stream)))
 
 (defun package-compile-top-level? (package)
+  "Does the language specified by PACKAGE need its forms to be
+compiled at the top level?"
   (and-let* ((sym (find-symbol compile-top-level-string package))
              ((boundp sym)))
     (symbol-value sym)))
@@ -636,14 +638,17 @@ instead."
   (let ((s (string s)))
     (or (find-symbol s p)
         (error "No symbol named ~a in ~s" s p))))
+  "Intern the symbol name of S in package P."
 
 (defmacro reinterning ((&rest names) &body body)
+  "Run BODY with each symbol in NAMES bound to the symbol of the same
+name in the current package."
   `(let ,(loop for name in names
                collect `(,name (reintern ',name)))
      ,@body))
 
 (defun package-expander (package &key (errorp t))
-  "Resolve the expander exported by PACKAGE."
+  "Resolve the module expander exported by PACKAGE."
   (flet ((error* (&rest args)
            (if errorp
                (apply #'error* args)
@@ -679,6 +684,8 @@ This should be a superset of the variables bound by CL during calls to
 (defun expand-module (package source
                       &key ((:in base))
                       &aux (file-locals *file-local-variables*))
+  "Parse SOURCE into a module form suitable for compilation using the
+reader and expander exported by PACKAGE."
   ;; Specifying the base (for interactive use).
   (when base
     (nlet lp (base)
@@ -704,9 +711,13 @@ This should be a superset of the variables bound by CL during calls to
           module-form)))))
 
 (defun expand-module* (source)
+  "Like `expand-module', inferring the language from SOURCE."
   (expand-module (source-lang source) source))
 
 (defun expand-module-for-emacs (lang source)
+  "Like `expand-module', but first resolving LANG.
+Intended to be called from Emacs to view the current module's
+expansion."
   (setf lang (resolve-lang lang))
   (values (expand-module lang source)))
 
@@ -737,10 +748,12 @@ This should be a superset of the variables bound by CL during calls to
                (format s "No such language as ~a" lang)))))
 
 (defun load-same-name-system (c)
+  "Invoke the `load-same-name-system' restart."
   (declare (ignore c))
   (invoke-restart 'load-same-name-system))
 
 (defgeneric maybe-find-asdf-system (lang)
+  (:documentation "Return the ASDF system named LANG, or nil if there is no such system.")
   (:method ((lang no-such-lang))
     (maybe-find-asdf-system (no-such-lang.lang lang)))
   (:method ((lang t))
