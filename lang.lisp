@@ -278,9 +278,9 @@ if it does not exist."
 
 ;;; Languages
 
-;;; Note that support for languages follows support for file patterns.
-;;; A pattern is an abstract relationship between two files; a
-;;; language is an abstract relationship between a file and Lisp
+;;; Note that support for languages builds on support for file
+;;; patterns. A pattern is an abstract relationship between two files;
+;;; a language is an abstract relationship between a file and Lisp
 ;;; binding.
 
 (defun %require-as (lang source *base* &rest args)
@@ -422,7 +422,8 @@ E.g. a language that just loaded a text file as a string:
 Does some sanity checking on PACKAGE-NAME to make sure an existing
 package is not overwritten."
   (let* ((pn (string package-name)))
-    ;; Sanity check: are we overwriting an existing package?
+    ;; Sanity check: are we overwriting an existing package (one that
+    ;; is not a language)?
     (when-let (package (find-package pn))
       (when (package-use-list package)
         (error* "Package already exists with a use list: ~a" package))
@@ -496,7 +497,7 @@ providing a restart to compile it if necessary."
            (lang (source-lang source))
            (*source* source)
            (*language* lang)
-           ;; Must be bound here for macros that intern
+           ;; The package must be bound here for macros that intern
            ;; symbols.
            (*package* (user-package (resolve-package lang)))
            (*base* (pathname-directory-pathname *source*)))
@@ -506,7 +507,7 @@ providing a restart to compile it if necessary."
       (depends-on source)
       ;; Depend on the computed language.
       (depends-on (language-oracle source))
-      ;; Let the language tell you what to depend on.
+      ;; Let the language tell you what else to depend on.
       (lang-deps lang source)
       (compile-to-file
        (wrap-current-module
@@ -519,7 +520,6 @@ providing a restart to compile it if necessary."
       ;; rebuilt, instead of the module cell being side-effected.
       (unload-module source)))
 
-  ;; TODO merge-input-defaults using the language?
   (:method merge-input-defaults (self (sources sequence))
     (map 'list #'resolve-source sources))
 
@@ -531,8 +531,9 @@ providing a restart to compile it if necessary."
   ;; It would be tempting to try to resolve the language name to a
   ;; package here, in case the language name is a nickname. It would
   ;; be nice if we could detect that a name points to a different
-  ;; package. But we don't want to require that a language package be
-  ;; loaded in order to load modules compiled using that language.
+  ;; package. But we don't necessarily want to require that a language
+  ;; package be loaded in order to load modules compiled using that
+  ;; language.
   (assure keyword
     (source-lang source)))
 
@@ -569,7 +570,6 @@ Also, ensure that PACKAGE is the current package when BODY is
 macro-expanded.
 
 If PACKAGE does not export an expander, `progn' is used instead."
-  ;; Is expanding the macro this way useful?
   (let* ((package-expander (package-expander package :errorp nil))
          (module-progn (or package-expander 'progn))
          (form `(,module-progn ,@body)))
@@ -599,7 +599,6 @@ but ending in `-user', and inheriting from that package, return that
 instead."
   (suffix-package package "-USER"))
 
-;;; TODO Is this useful?
 (defun expand-in-package (form package env)
   (let ((*package* (user-package (resolve-package package))))
     (macroexpand-1 form env)))
@@ -631,8 +630,8 @@ instead."
                      ;; There is a symbol, but it's not external.
                      (error* "Package ~a does not export a reader" p))
                     ((not (fboundp sym))
-                     ;; There is an external symbol, but it's not
-                     ;; fbound.
+                     ;; There is an external symbol, but it doesn't
+                     ;; have a a function binding.
                      (error* "No binding for reader in package ~a" p))
                     (t sym))))))))
 
