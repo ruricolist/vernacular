@@ -635,10 +635,8 @@ compiled at the top level?"
                     (t sym))))))))
 
 (defun reintern (s &aux (p *package*))
-  (let ((s (string s)))
-    (or (find-symbol s p)
-        (error "No symbol named ~a in ~s" s p))))
   "Intern the symbol name of S in package P."
+  (intern (string s) p))
 
 (defmacro reinterning ((&rest names) &body body)
   "Run BODY with each symbol in NAMES bound to the symbol of the same
