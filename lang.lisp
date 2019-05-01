@@ -15,7 +15,6 @@
     :overlord/target
 
     :vernacular/types
-    :vernacular/import-set
     :vernacular/hash-lang-syntax
     :vernacular/module)
   ;; How to compile a program to a fasl.
