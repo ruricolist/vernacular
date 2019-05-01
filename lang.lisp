@@ -7,16 +7,17 @@
     :uiop/pathname
     :overlord/types
     :overlord/util
-    :overlord/cache
-    :overlord/stamp
-    :overlord/asdf
-    :overlord/base
-    :overlord/global-state
-    :overlord/target
+    :overlord/cache                     ;Translate fasl locations.
+    :overlord/stamp                     ;Generalized timestamps.
+    :overlord/asdf                      ;Wrapper for ASDF.
+    :overlord/base                      ;Accessing the base of the current build.
+    :overlord/global-state              ;Explicit declaration of global state vars.
+    :overlord/target                    ;Implementation of targets.
 
-    :vernacular/types
-    :vernacular/hash-lang-syntax
-    :vernacular/module)
+    :vernacular/types                   ;Types used throughout Vernacular.
+    :vernacular/hash-lang-syntax        ;Parser for #lang lines.
+    :vernacular/module                  ;Module protocol and basic implementations.
+    )
   ;; How to compile a program to a fasl.
   (:import-from :vernacular/compile-to-file
     :compile-to-file :load-as-module :fasl-ext)
