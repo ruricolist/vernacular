@@ -268,10 +268,10 @@ if it does not exist."
   (setf path
         (assure pathname
           (or (truename* path)
-              (or (progn
-                    (build path)
-                    (truename* path))
-                  (error "Cannot resolve pathname ~a" path)))))
+              (progn
+                (build path)
+                (truename* path))
+              (error "Cannot resolve pathname ~a" path))))
   (mvlet* ((cell cell?
             (gethash path *module-cells*)))
     (if cell? (assure module-cell cell)
