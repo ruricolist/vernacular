@@ -161,11 +161,14 @@ forever."))
       (setf source *nil-pathname*
             timestamp never))))
 
+;;; Clear the module cells when stripping the build system before
+;;; saving an image.
 (add-hook '*before-hard-freeze-hook* 'clear-module-cells)
 
 ;;; Compiler macro needs to appear as soon as possible to satisfy
 ;;; SBCL.
 (define-compiler-macro module-cell (&whole call path)
+  "Try to rewrite `module-cell' to do the lookup once at load time."
   (typecase-of (or string pathname) path
     (string
      `(module-cell ,(ensure-pathname path :want-pathname t)))
@@ -179,6 +182,7 @@ forever."))
     (otherwise call)))
 
 (defun module-cell-meta (cell key)
+  "Lookup KEY in the metadata for module cell CELL."
   (synchronized (cell)
     (getf (module-cell.meta cell) key)))
 
@@ -211,6 +215,7 @@ resolved at load time."
               module))))
 
 (defun load-module-into-cell (cell)
+  "Load (or reload) its module into CELL."
   (synchronized (cell)
     (lret* ((module
              (~> cell
@@ -223,6 +228,7 @@ resolved at load time."
        (module-cell.timestamp cell) (now)))))
 
 (defun unload-module-cell (cell)
+  "Restore CELL to a state where its module is unloaded."
   (synchronized (cell)
     (with-slots (timestamp module) cell
       (clear-inline-caches (nix module))
@@ -236,18 +242,22 @@ resolved at load time."
           collect (cons path (module-cell.module cell))))
 
 (defun ensure-module-loaded (source)
+  "Load SOURCE unless it is already loaded."
   (ensure-module-cell-loaded (module-cell source)))
 
 (define-compiler-macro ensure-module-loaded (source)
+  "Expose the call to module-cell."
   `(ensure-module-cell-loaded (module-cell ,source)))
 
 (defun ensure-module-cell-loaded (cell)
+  "Ensure CELL's module has been loaded."
   (unless (module-cell.module cell)
     (synchronized (cell)
       (unless (module-cell.module cell)
         (load-module-into-cell cell)))))
 
 (defun unload-module (source)
+  "Unload the module defined by SOURCE."
   (declare (notinline module-cell))
   (unload-module-cell (module-cell source)))
 
@@ -269,13 +279,17 @@ if it does not exist."
           (setf (gethash path *module-cells*) cell)))))
 
 (defun module-cell (path)
+  "Resolve PATH and intern a module cell pointing to it."
   (let* ((path (ensure-absolute path)))
     (intern-module-cell path)))
 
 (defun find-module (source)
+  "If SOURCE has been loaded, return its module.
+Otherwise return nil."
   (module-cell.module (module-cell source)))
 
 (define-compiler-macro find-module (source)
+  "Expose the call to module-cell."
   `(module-cell.module (module-cell ,source)))
 
 
