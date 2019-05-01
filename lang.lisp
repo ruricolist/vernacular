@@ -155,11 +155,11 @@ forever."))
   ;; where expansion of compiler macros has been suppressed by
   ;; optimization settings and there is no reference to the module
   ;; cell to keep it from being garbage-collected.
-  (maphash (lambda (k mc) (declare (ignore k))
-             (with-slots (source timestamp) mc
-               (setf source *nil-pathname*
-                     timestamp never)))
-           *module-cells*))
+  (do-hash-table (k mc *module-cells*)
+    (declare (ignore k))
+    (with-slots (source timestamp) mc
+      (setf source *nil-pathname*
+            timestamp never))))
 
 (add-hook '*before-hard-freeze-hook* 'clear-module-cells)
 
