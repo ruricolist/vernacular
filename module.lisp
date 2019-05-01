@@ -82,14 +82,16 @@
   (:documentation "Get static exports from LANG and SOURCE.
 Returns two values: a list of static exports, and a second value that is T if the exports could be statically determined."))
 
-(defun validate-module (module)
-  "Validate that MODULE can be used as a module."
-  (when (null module)
+(defgeneric validate-module (module)
+  (:documentation "Validate that MODULE can be used as a module.
+If the module is valid, return it.")
+  (:method ((module null))
     (error 'invalid-module :module module))
-  ;; `module-exports' signals `not-a-module' if there is no defined
-  ;; method.
-  (module-exports module)
-  module)
+  (:method (module)
+    ;; `module-exports' signals `not-a-module' if there is no defined
+    ;; method.
+    (module-exports module)
+    module))
 
 
 
