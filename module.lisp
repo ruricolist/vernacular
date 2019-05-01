@@ -7,28 +7,34 @@
     #:make-weak-pointer
     #:weak-pointer-value)
   (:export
-   #:validate-module
-   #:basic-module
-   #:make-basic-module
-   #:module-ref
-   #:module-ref*
-   #:module-ref/inline-cache
-   #:module-fn-ref
-   #:module-fn-ref/inline-cache
-   #:clear-inline-caches
-   #:module-exports #:module-exports*
-   #:module-static-exports
-   #:current-module
-   #:current-module-cell
-   #:current-module-source
-   #:current-module-lang
-   #:current-module-meta
-   #:default-export-module
+   ;; Module-related conditions
    #:module-error
    #:module-error-module
    #:no-such-export
    #:not-a-module
-   #:import-from))
+   ;; The protocol.
+   #:module-ref
+   #:module-exports
+   #:module-static-exports
+   #:validate-module
+   ;; Internal entry points.
+   #:module-ref*
+   #:module-ref/inline-cache
+   #:module-fn-ref
+   #:module-fn-ref/inline-cache
+   #:module-exports*
+   #:clear-inline-caches
+   ;; Default module implementation.
+   #:basic-module
+   #:make-basic-module
+   #:default-export-module
+   ;; Symbols that refer (lexically) to the current module. Not
+   ;; implemented here, just exported.
+   #:current-module
+   #:current-module-cell
+   #:current-module-source
+   #:current-module-lang
+   #:current-module-meta))
 
 (in-package #:vernacular/module)
 
