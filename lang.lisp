@@ -126,7 +126,8 @@
    (source
     :initarg :source
     :type (and file-pathname tame-pathname)
-    :accessor module-cell.source)
+    :accessor module-cell.source
+    :documentation "Absolute pathname of the module's source file.")
    (meta
     :initform nil
     :type plist
@@ -135,9 +136,11 @@
 the module is reloaded.")
    (module
     :initform nil
-    :accessor module-cell.module)
+    :accessor module-cell.module
+    :documentation "The actual module.")
    (lock
-    :reader monitor))
+    :reader monitor
+    :documentation "A recursive lock."))
   (:documentation "Storage for a module.
 
 Each source file gets its own module cell with its own unique
