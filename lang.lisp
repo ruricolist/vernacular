@@ -572,7 +572,8 @@ providing a restart to compile it if necessary."
 (def loader-language-exports
   (list (string 'load)
         package-reader-string
-        (string 'script)))
+        (string 'script))
+  "Strings that a package must intern and export to implement a loader language.")
 
 ;;; Make it a function so it can be used before defined.
 (defun loader-language-exports ()
