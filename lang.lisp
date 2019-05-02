@@ -47,8 +47,8 @@
    :define-loader-language
    :*language* :*source*
    :read-lang-name
-   :require-as :require-default
-   :dynamic-require-as :dynamic-require-default :require-once
+   :require-as :require-once :require-default
+   :dynamic-require-as :dynamic-require-once :dynamic-require-default
    :dynamic-unrequire
    ;; Module protocol.
    :module-meta
@@ -300,17 +300,13 @@ Otherwise return nil."
 ;;; a language is an abstract relationship between a file and Lisp
 ;;; binding.
 
-(defun %require-as (lang source *base* &rest args)
-  (apply #'dynamic-require-as
-         lang
-         source
-         args))
-
 (defun dynamic-require-default (lang source &key force)
   (let ((module (dynamic-require-as lang source :force force)))
     (module-ref module :default)))
 
-(defun dynamic-require-as (lang source &key force)
+(defun dynamic-require-as (lang source
+                           &key force
+                                ((:base *base*) (base)))
   "Ensure that the module at SOURCE is loaded, defaulting its language to LANG.
 Passing FORCE will reload the module even if it is already loaded."
   (let* ((*default-lang* (and lang (lang-name lang)))
@@ -321,13 +317,15 @@ Passing FORCE will reload the module even if it is already loaded."
     (ensure-module-loaded source)
     (find-module source)))
 
-(defun require-once (lang source)
+(defun dynamic-require-once (lang source &key ((:base *base*) (base)))
   (let ((source (resolve-file source)))
     (or (find-module source)
         (dynamic-require-as lang source))))
 
-(defun %unrequire (source *base*)
-  (dynamic-unrequire (resolve-file source)))
+(defmacro require-once (lang source)
+  "Require (as with `require-as') but only if the module is not
+already loaded."
+  `(dynamic-require-once ,lang ,source :base ,(base)))
 
 (defun dynamic-unrequire (source)
   "Unload the module at SOURCE."
@@ -336,7 +334,7 @@ Passing FORCE will reload the module even if it is already loaded."
   (values))
 
 (defmacro require-as (&rest args)
-  "Wrap `%require-as`, resolving the base at macro-expansion time.
+  "Load a module, resolving the base at macro-expansion time.
 A single arg is treated as the source, with the language being inferred.
 Two args is treated as the language and the source."
   (receive (lang source)
@@ -345,7 +343,7 @@ Two args is treated as the language and the source."
          (values nil source))
         ((list lang source)
          (values lang source)))
-    `(%require-as ,lang ,source ,(base))))
+    `(dynamic-require-as ,lang ,source :base ,(base))))
 
 (defmacro require-default (&rest args)
   `(module-ref* (require-as ,@args) :default))
@@ -357,8 +355,8 @@ interoperation with Emacs."
   (values))
 
 (defmacro unrequire (source)
-  "Wrap `%unrequire', resolving the base at macro-expansion time."
-  `(%unrequire ,source ,(base)))
+  "Wrap `dynamic-unrequire', capturing the compile-time base."
+  `(dynamic-unrequire (resolve-file ,source :base ,(base))))
 
 (defun vernacular-major-version ()
   (version-major-version
