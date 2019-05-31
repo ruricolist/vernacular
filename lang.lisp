@@ -49,6 +49,7 @@
    :read-lang-name
    :require-as :require-once :require-default
    :dynamic-require-as :dynamic-require-once :dynamic-require-default
+   :dynamic-require
    :dynamic-unrequire
    ;; Module protocol.
    :module-meta
@@ -304,13 +305,19 @@ Otherwise return nil."
   (let ((module (dynamic-require-as lang source :force force)))
     (module-ref module :default)))
 
-(defun dynamic-require-as (lang source
-                           &key force
-                                ((:base *base*) (base)))
+(defun dynamic-require-as (lang source &key force
+                                            (base (base)))
   "Ensure that the module at SOURCE is loaded, defaulting its language to LANG.
 Passing FORCE will reload the module even if it is already loaded."
-  (let* ((*default-lang* (and lang (lang-name lang)))
-         (source (resolve-file source)))
+  (let* ((*default-lang* (and lang (lang-name lang))))
+    (dynamic-require source :force force
+                            :base base)))
+
+(defun dynamic-require (source &key force
+                                    ((:base *base*) (base)))
+  "Ensure that the module at SOURCE is loaded.
+Passing FORCE will reload the module even if it is already loaded."
+  (let* ((source (resolve-file source)))
     (when force
       (dynamic-unrequire source))
     (depends-on (compiled-module-target source))
