@@ -26,8 +26,8 @@
 (def universal-file
   (asdf-system-relative-pathname :vernacular "universal.lisp"))
 
-(defmacro define-file-package (source lang)
-  (let* ((package (ensure-file-package source :lang lang))
+(defmacro define-file-package (source)
+  (let* ((package (ensure-file-package source))
          (name (package-name package))
          (use-list (mapcar #'package-name (package-use-list package))))
     `(eval-always
@@ -52,7 +52,7 @@
            ;; the top level.
            (and top-level
                 source
-                `(define-file-package ,source ,*language*)))
+                `(define-file-package ,source)))
          (*program*
            (if top-level
                program

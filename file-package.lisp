@@ -5,7 +5,11 @@
     :uiop/pathname
     :overlord/types)
   (:import-from :vernacular/specials :*language*)
+  (:import-from :overlord/base :current-system)
   (:import-from :overlord/digest :digest-string)
+  (:import-from :overlord/asdf
+    :asdf-system-name-keyword
+    :asdf-system-name)
   (:import-from :s-base64 :encode-base64-bytes)
   (:export
    :find-file-package
@@ -17,48 +21,36 @@
 (deftype symbol-status ()
   '(member null :internal :external :inherited))
 
-(defparameter *suffix-bytes* 4)
-
-(defun ensure-file-package (file &key (lang *language*) use-list)
+(defun ensure-file-package (file &key use-list)
   (check-type file pathname-designator)
-  (check-type lang string-designator)
   (check-type use-list (list-of package-designator))
   (assure package
-    (or (find-file-package file :lang lang)
-        (make-file-package file :lang lang :use-list use-list))))
+    (or (find-file-package file)
+        (make-file-package file :use-list use-list))))
 
-(defun reset-file-package (file &key (lang *language*) use-list)
+(defun reset-file-package (file &key use-list)
   (check-type file pathname-designator)
-  (check-type lang string-designator)
   (check-type use-list (list-of package-designator))
   (assure package
     (reset-package
-     (ensure-file-package file :lang lang :use-list use-list))))
+     (ensure-file-package file :use-list use-list))))
 
-(defun find-file-package (file &key lang use-list)
+(defun find-file-package (file &key use-list)
   (declare (ignore use-list))
-  (let ((name (file-package-name file lang)))
+  (let ((name (file-package-name file)))
     (find-package name)))
 
-(defun make-file-package (file &key lang use-list)
-  (let ((name (file-package-name file lang)))
+(defun make-file-package (file &key use-list)
+  (let ((name (file-package-name file)))
     (make-package name :use use-list)))
 
-(defun file-package-name (file lang)
-  (let* ((file (pathname file))
-         (string
-           (fmt "file=~a,lang=~a"
-                (ellipsize (unix-namestring file) 20)
-                lang))
-         (hash (digest-string string))
-         (bytes (subseq hash 0 *suffix-bytes*))
-         (suffix (make-suffix bytes))
-         (file-name (pathname-name file))
-         (type (pathname-type file)))
-    (fmt "~a.~a~~~a"
-         (string-upcase file-name)
-         type
-         suffix)))
+(defun file-package-name (file)
+  (let* ((system (current-system))
+         (base (asdf-system-base system)))
+    (assert (subpathp file base))
+    (let ((namestring (enough-namestring file base))
+          (system-name (asdf-system-name system)))
+      (fmt "~(~a~).~a" system-name namestring))))
 
 (defun make-suffix (suffix)
   (~>> suffix
