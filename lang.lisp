@@ -28,7 +28,7 @@
     :frozen?
     :*before-hard-freeze-hook*)
   (:import-from :overlord/specials
-    :*base*)
+    :*base* :*base-package*)
   (:import-from :vernacular/specials
     :*language*
     :*default-lang*
@@ -516,6 +516,7 @@ providing a restart to compile it if necessary."
            (lang (source-lang source))
            (*source* source)
            (*language* lang)
+           (*base-package* *package*)
            ;; The package must be bound here for macros that intern
            ;; symbols.
            (*package* (user-package (resolve-package lang)))
