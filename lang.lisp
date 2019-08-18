@@ -365,14 +365,17 @@ interoperation with Emacs."
   "Wrap `dynamic-unrequire', capturing the compile-time base."
   `(dynamic-unrequire (resolve-file ,source :base ,(base))))
 
-(defun vernacular-major-version ()
-  (version-major-version
-   (asdf-system-version "vernacular")))
+(defun vernacular-version ()
+  (let* ((version (asdf-system-version "vernacular")))
+    (destructuring-bind (major minor patch)
+        (split-sequence #\. version)
+      (declare (ignore patch))
+      (string+ major "." minor))))
 
 (defun fasl-dir (file)
   "Return the directory to output the fasl for FILE to.
 This directory contains the directories of FILE as a suffix."
-  (let ((version (princ-to-string (vernacular-major-version))))
+  (let ((version (vernacular-version)))
     (shadow-tree-translate
      (make-shadow-tree :prefix `("vernacular" ,version "fasls"))
      (pathname-directory-pathname file))))
