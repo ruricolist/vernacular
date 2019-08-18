@@ -520,8 +520,8 @@ providing a restart to compile it if necessary."
            ;; symbols.
            (*package* (user-package (resolve-package lang)))
            (*base* (pathname-directory-pathname *source*)))
-      (assert (file-exists-p source) ()
-              "File ~a does not exist" source)
+      (unless (file-exists-p source)
+        (error* "File ~a does not exist" source))
       ;; Depend on the source file.
       (depends-on source)
       ;; Depend on the computed language.
