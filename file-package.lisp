@@ -9,7 +9,8 @@
   (:import-from :overlord/digest :digest-string)
   (:import-from :overlord/asdf
     :asdf-system-name-keyword
-    :asdf-system-name)
+    :asdf-system-name
+    :asdf-system-base)
   (:import-from :s-base64 :encode-base64-bytes)
   (:export
    :find-file-package
