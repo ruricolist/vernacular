@@ -10,13 +10,15 @@
     :simple-module)
   (:import-from :vernacular/hash-table-module
     :hash-table-module)
+  (:import-from :vernacular/package-module
+    :package-module)
   (:import-from :vernacular/file-package
     :ensure-file-package
     :reset-file-package)
   (:import-from :vernacular/specials)
   (:export
    :module-ref :module-ref* :module-exports :module-static-exports
-   :simple-module :hash-table-module
+   :simple-module :hash-table-module :package-module
    :ensure-file-package :reset-file-package)
   (:use-reexport
    :vernacular/lang

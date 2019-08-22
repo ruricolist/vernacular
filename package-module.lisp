@@ -1,0 +1,23 @@
+(defpackage :vernacular/package-module
+  (:documentation "Support packages as modules.")
+  (:use :cl :alexandria :serapeum)
+  (:import-from :overlord/types :error*)
+  (:import-from :vernacular/types :export-spec :var-spec :function-spec :macro-spec :export-alias)
+  (:import-from :vernacular/module :module-ref :module-exports :current-module-source)
+  (:import-from :vernacular/specials :*source* :*module*)
+  (:import-from :vernacular/file-package :ensure-file-package)
+  (:export :hash-table-package-module))
+(in-package :vernacular/package-module)
+
+(defmethod module-exports ((m package))
+  (mapcar #'make-keyword (package-exports m)))
+
+(defmethod module-ref ((m package) name)
+  (mvlet ((sym status (find-symbol (string name) m)))
+    (unless (and sym (eql status :external))
+      (error "Package ~a does not export ~s." m sym))
+    (or (macro-function sym)
+        (and (fboundp sym)
+             (symbol-function sym))
+        (and (boundp sym)
+             (symbol-value sym)))))
