@@ -532,13 +532,10 @@ providing a restart to compile it if necessary."
       (depends-on (language-oracle source))
       ;; Let the language tell you what else to depend on.
       (lang-deps lang source)
-      (compile-to-file
-       (wrap-current-module
-        (expand-module lang source)
-        lang output)
-       (ensure-directories-exist output)
-       :top-level (package-compile-top-level? lang)
-       :source *source*)
+      (compile-to-file (expand-module lang source)
+                       (ensure-directories-exist output)
+                       :top-level (package-compile-top-level? lang)
+                       :source *source*)
       ;; XXX There really should be an in-Lisp binding that is
       ;; rebuilt, instead of the module cell being side-effected.
       (unload-module source)))
@@ -745,22 +742,6 @@ Intended to be called from Emacs to view the current module's
 expansion."
   (setf lang (resolve-lang lang))
   (values (expand-module lang source)))
-
-(defmacro with-current-module ((lang source) &body body)
-  `(macrolet ((current-module-lang () ',lang)
-              (current-module-source () ',source)
-              (current-module-cell ()
-                `(module-cell ',',lang ,',source))
-              (current-module ()
-                `(find-module ',',lang ,',source))
-              (current-module-meta (key)
-                `(module-meta ',',lang ,',source ,key)))
-     ,@body))
-
-(defun wrap-current-module (form package source)
-  (let ((lang (lang-name package)))
-    `(with-current-module (,lang ,source)
-       ,form)))
 
 
 ;;; #lang syntax.
