@@ -346,9 +346,12 @@ yet been loaded."
     (let* ((key (import-keyword import))
            (ref
              (etypecase-of import-alias alias
-               (var-alias `(module-ref/inline-cache ,module ',key))
-               ((or function-alias macro-alias)
-                `(module-fn-ref/inline-cache ,module ',key)))))
+               (var-alias
+                `(module-ref/inline-cache ,module ',key nil))
+               (function-alias
+                `(module-ref/inline-cache ,module ',key 'function))
+               (macro-alias
+                `(module-ref/inline-cache ,module ',key 'macro-function)))))
       (values import alias ref))))
 
 (defun import-keyword (import)

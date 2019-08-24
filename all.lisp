@@ -1,11 +1,11 @@
 ;;;; package.lisp
 
 (uiop:define-package :vernacular/all
-    (:nicknames :vernacular)
+  (:nicknames :vernacular)
   (:import-from :overlord)
   (:use :overlord/target-protocol)
   (:import-from :vernacular/module
-    :module-ref :module-ref* :module-exports :module-static-exports)
+    :module-ref :module-ref* :module-ref-ns :module-exports :module-static-exports)
   (:import-from :vernacular/simple-module
     :simple-module)
   (:import-from :vernacular/hash-table-module

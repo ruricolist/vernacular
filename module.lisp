@@ -14,14 +14,13 @@
    #:not-a-module
    ;; The protocol.
    #:module-ref
+   #:module-ref-ns
    #:module-exports
    #:module-static-exports
    #:validate-module
    ;; Internal entry points.
    #:module-ref*
    #:module-ref/inline-cache
-   #:module-fn-ref
-   #:module-fn-ref/inline-cache
    #:module-exports*
    #:clear-inline-caches
    ;; Default module implementation.
@@ -71,6 +70,14 @@
     (declare (ignore name))
     (error 'not-a-module
            :module module)))
+
+(defgeneric module-ref-ns (module name ns)
+  (:documentation "Get the value of NAME in MODULE, using namespace NS.
+If MODULE does not use namespaces, this is the same as MODULE-REF.")
+  (:argument-precedence-order module ns name)
+  (:method (module name ns)
+    (declare (ignore ns))
+    (module-ref module name)))
 
 (defgeneric module-exports (module)
   (:documentation "A list of names exported by MODULE.")
@@ -227,21 +234,14 @@ inline caches will point into the new module."
       (when-let (cache (tg:weak-pointer-value p))
         (setf (unbox cache) unbound)))))
 
-(defun fill-inline-cache (inline-cache module key)
+(defun fill-inline-cache (inline-cache module key ns)
   "Register INLINE-CACHE as an inline cache for MODULE and store
   MODULE's value for KEY in the cache."
   (register-inline-cache module inline-cache)
   (setf (unbox inline-cache)
-        (module-ref* module key)))
+        (module-ref-ns module key ns)))
 
-(-> fill-inline-cache/fn (box t t) function)
-(defun fill-inline-cache/fn (inline-cache module key)
-  "Like `fill-inline-cache', but with a signature that says it returns
-a function."
-  (assure function
-    (fill-inline-cache inline-cache module key)))
-
-(defmacro module-ref/inline-cache (module key &environment env)
+(defmacro module-ref/inline-cache (module key ns &environment env)
   "Embed an inline cache (using `load-time-value') and use it to cache
 lookups of KEY in MODULE."
   (assert (constantp key env))
@@ -249,25 +249,11 @@ lookups of KEY in MODULE."
     `(locally (declare (optimize . #.battleshort))
        (let* ((,inline-cache (load-time-value (box unbound)))
               (,val (unbox ,inline-cache)))
-         (if (eq unbound ,val)
-             (fill-inline-cache ,inline-cache ,module ,key)
-             ,val)))))
-
-(-> module-fn-ref (t symbol) function)
-(defsubst module-fn-ref (module name)
-  "Exactly like `module-ref*', but has a signature that says it
-returns a function."
-  (assure function (module-ref* module name)))
-
-(defmacro module-fn-ref/inline-cache (module key &environment env)
-  "Like `module-ref/inline-cache', but set up so the compiler knows it
-returns a function."
-  (assert (constantp key env))
-  (with-unique-names (inline-cache val)
-    `(locally (declare (optimize . #.battleshort))
-       (let* ((,inline-cache (load-time-value (box unbound)))
-              (,val (unbox ,inline-cache)))
-         (the function
-              (if (functionp ,val)
-                  ,val
-                  (fill-inline-cache/fn ,inline-cache ,module ,key)))))))
+         ,(if (eql ns 'function)
+              `(if (functionp ,val)
+                   ,val
+                   (assure function
+                     (fill-inline-cache ,inline-cache ,module ,key 'function)))
+              `(if (eq unbound ,val)
+                   (fill-inline-cache ,inline-cache ,module ,key ,ns)
+                   ,val))))))
