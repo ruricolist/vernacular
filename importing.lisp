@@ -293,7 +293,25 @@ yet been loaded."
 
 (defmacro import-bindings (module &body values)
   `(progn
-     ,@(mapcar (op (import-binding _ module)) values)))
+     ,@(mapcar (op `(import-binding ,module ,_)) values)))
+
+(defmacro import-binding (module clause)
+  (receive (import alias ref) (import+alias+ref clause module)
+    (declare (ignore import))
+    (etypecase-of import-alias alias
+      (var-alias
+       `(vernacular/shadows:def ,alias ,ref))
+      (function-alias
+       (let ((alias (second alias)))
+         `(vernacular/shadows:defalias ,alias
+            (assure function (function-wrapper ,ref)))))
+      (macro-alias
+       ;; Macros cannot be imported as values.
+       (let ((alias (second alias)))
+         (with-gensyms (whole body env)
+           `(vernacular/shadows:defmacro ,alias (&whole ,whole &body ,body &environment ,env)
+              (declare (ignore ,body))
+              (funcall ,ref ,whole ,env))))))))
 
 (defun canonicalize-binding (clause)
   (assure canonical-binding
@@ -322,24 +340,6 @@ yet been loaded."
                               (var-alias (prefix alias))
                               (function-alias `(function ,(prefix (second alias))))
                               (macro-alias `(macro-function ,(prefix (second alias))))))))))
-
-(defun import-binding (clause module)
-  (receive (import alias ref) (import+alias+ref clause module)
-    (declare (ignore import))
-    (etypecase-of import-alias alias
-      (var-alias
-       `(vernacular/shadows:def ,alias ,ref))
-      (function-alias
-       (let ((alias (second alias)))
-         `(vernacular/shadows:defalias ,alias
-            (assure function (function-wrapper ,ref)))))
-      (macro-alias
-       ;; Macros cannot be imported as values.
-       (let ((alias (second alias)))
-         (with-gensyms (whole body env)
-           `(vernacular/shadows:defmacro ,alias (&whole ,whole &body ,body &environment ,env)
-              (declare (ignore ,body))
-              (funcall ,ref ,whole ,env))))))))
 
 (defun import+alias+ref (clause module)
   (destructuring-bind (import alias) (canonicalize-binding clause)
