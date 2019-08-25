@@ -10,8 +10,6 @@
     :simple-module)
   (:import-from :vernacular/hash-table-module
     :hash-table-module)
-  (:import-from :vernacular/package-module
-    :package-module)
   (:import-from :vernacular/file-package
     :ensure-file-package
     :reset-file-package)
