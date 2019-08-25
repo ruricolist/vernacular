@@ -13,11 +13,13 @@
   (:import-from :vernacular/file-package
     :ensure-file-package
     :reset-file-package)
-  (:import-from :vernacular/specials)
+  (:import-from :vernacular/specials
+    :*module* :*source*)
   (:export
-   :module-ref :module-ref* :module-exports :module-static-exports
+   :module-ref :module-ref* :module-ref-ns :module-exports :module-static-exports
    :simple-module :hash-table-module :package-module
-   :ensure-file-package :reset-file-package)
+   :ensure-file-package :reset-file-package
+   :*module* :*source*)
   (:use-reexport
    :vernacular/lang
    :vernacular/import-set
