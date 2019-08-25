@@ -14,6 +14,8 @@
     :vernacular/types
     :vernacular/specials
     :vernacular/lang)
+  (:import-from :trivia
+    :match :ematch)
   (:import-from :overlord/types
     :error*
     :absolute-pathname)
@@ -57,7 +59,7 @@
                (module-static-exports lang source)
              (if exports? exports
                  (module-dynamic-exports lang source)))))
-    (etypecase-of binding-spec spec
+    (match spec
       ((eql :all)
        (loop for export in (get-static-exports)
              for sym = (intern (string export))
@@ -66,10 +68,10 @@
        (loop for export in (get-static-exports)
              for sym = (intern (string export))
              collect `(,export :as #',sym)))
-      ((tuple :import-set list)
-       (let ((import-set (second spec)))
-         (expand-import-set import-set #'get-static-exports)))
-      (list spec))))
+      ((list :import-set import-set)
+       (expand-import-set import-set #'get-static-exports))
+      ((type list)
+       spec))))
 
 (defmacro function-wrapper (fn)
   "Global definition for possible shadowing."
@@ -269,10 +271,10 @@ yet been loaded."
 
 (defmacro import-task (module &body (&key as from values))
   (let ((task-name
-          (etypecase-of import-alias module
-            (var-alias module)
-            ((or function-alias macro-alias)
-             (second module)))))
+          (ematch module
+            ((type symbol) module)
+            ((list (or 'function 'macro-function) name)
+             name))))
     `(define-target-task ,task-name
        (setf ,module (require-as ',as ,from))
        (update-value-bindings ,module ,@values))))
@@ -284,12 +286,13 @@ yet been loaded."
            (receive (import alias ref) (import+alias+ref clause module)
              (declare (ignore import))
              (collect
-                 (etypecase-of import-alias alias
-                   (var-alias `(setf ,alias ,ref))
-                   (function-alias
-                    `(setf (symbol-function ',(second alias)) ,ref))
+                 (ematch alias
+                   ((type symbol) `(setf ,alias ,ref))
+                   ((list 'function alias)
+                    `(setf (symbol-function ',alias) ,ref))
                    ;; Do nothing. Macros cannot be imported as values.
-                   (macro-alias nil))))))))
+                   ((list 'macro-function _)
+                    nil))))))))
 
 (defmacro import-bindings (module &body values)
   `(progn
@@ -298,35 +301,28 @@ yet been loaded."
 (defmacro import-binding (module clause)
   (receive (import alias ref) (import+alias+ref clause module)
     (declare (ignore import))
-    (etypecase-of import-alias alias
-      (var-alias
+    (ematch alias
+      ((type symbol)
        `(vernacular/shadows:def ,alias ,ref))
-      (function-alias
-       (let ((alias (second alias)))
-         `(vernacular/shadows:defalias ,alias
-            (assure function (function-wrapper ,ref)))))
-      (macro-alias
-       ;; Macros cannot be imported as values.
-       (let ((alias (second alias)))
-         (with-gensyms (whole body env)
-           `(vernacular/shadows:defmacro ,alias (&whole ,whole &body ,body &environment ,env)
-              (declare (ignore ,body))
-              (funcall ,ref ,whole ,env))))))))
+      ((list 'function alias)
+       `(vernacular/shadows:defalias ,alias
+          (assure function (function-wrapper ,ref))))
+      ((list 'macro-function alias)
+       (with-gensyms (whole body env)
+         `(vernacular/shadows:defmacro ,alias (&whole ,whole &body ,body &environment ,env)
+            (declare (ignore ,body))
+            (funcall ,ref ,whole ,env)))))))
 
 (defun canonicalize-binding (clause)
-  (assure canonical-binding
-    (if (typep clause 'canonical-binding)
-        clause
-        (etypecase-of binding-designator clause
-          (var-spec
-           (list (make-keyword clause) clause))
-          (function-alias
-           (list (make-keyword (second clause)) clause))
-          (macro-alias
-           (list (make-keyword (second clause)) clause))
-          ((tuple symbol :as import-alias)
-           (destructuring-bind (import &key ((:as alias))) clause
-             (list (make-keyword import) alias)))))))
+  (ematch clause
+    ((type symbol)
+     (list (make-keyword clause) clause))
+    ((list 'function name)
+     (list (make-keyword name) clause))
+    ((list 'macro-alias name)
+     (list (make-keyword name) clause))
+    ((list (and import (type symbol)) :as alias)
+     (list (make-keyword import) alias))))
 
 (defun canonicalize-bindings (clauses)
   (mapcar #'canonicalize-binding clauses))
@@ -336,21 +332,24 @@ yet been loaded."
       (flet ((prefix (suffix) (symbolicate prefix suffix)))
         (loop for (import alias) in clauses
               collect (list import
-                            (etypecase-of import-alias alias
-                              (var-alias (prefix alias))
-                              (function-alias `(function ,(prefix (second alias))))
-                              (macro-alias `(macro-function ,(prefix (second alias))))))))))
+                            (ematch alias
+                              ((type symbol)
+                               (prefix alias))
+                              ((list 'function sym)
+                               `(function ,(prefix sym)))
+                              ((list 'macro-alias sym)
+                               `(macro-function ,(prefix sym)))))))))
 
 (defun import+alias+ref (clause module)
   (destructuring-bind (import alias) (canonicalize-binding clause)
     (let* ((key (import-keyword import))
            (ref
-             (etypecase-of import-alias alias
-               (var-alias
+             (ematch alias
+               ((type symbol)
                 `(module-ref/inline-cache ,module ',key nil))
-               (function-alias
+               ((list 'function _)
                 `(module-ref/inline-cache ,module ',key 'function))
-               (macro-alias
+               ((list 'macro-function _)
                 `(module-ref/inline-cache ,module ',key 'macro-function)))))
       (values import alias ref))))
 
@@ -427,34 +426,32 @@ the symbols bound in the body of the import form."
                               &body (&rest body
                                      &key
                                        ((:binding bindings))
-                                       &allow-other-keys))
+                                     &allow-other-keys))
   (declare (ignore body))
   `(defpackage ,package-name
      (:use)
      (:export ,@(nub (loop for (nil alias) in bindings
                            collect (make-keyword
-                                    (etypecase-of import-alias alias
-                                      (var-alias alias)
-                                      (function-alias (second alias))
-                                      (macro-alias (second alias)))))))))
+                                    (ematch alias
+                                      ((type symbol) alias)
+                                      ((list 'function alias) alias)
+                                      ((list 'macro-function alias) alias))))))))
 
 (defmacro import-as-package-aux (package-name &body
                                                 (&rest body
                                                  &key ((:binding bindings))
-                                                      &allow-other-keys))
+                                                 &allow-other-keys))
   (let ((p (assure package (find-package package-name))))
     (labels ((intern* (sym)
                (intern (string sym) p))
              (intern-spec (spec)
                (loop for (key alias) in spec
-                     collect `(,key :as ,(etypecase-of import-alias alias
-                                           (var-alias (intern* alias))
-                                           (function-alias
-                                            (let ((alias (second alias)))
-                                              `(function ,(intern* alias))))
-                                           (macro-alias
-                                            (let ((alias (second alias)))
-                                              `(macro-function ,(intern* alias)))))))))
+                     collect `(,key :as ,(ematch alias
+                                           ((type symbol) (intern* alias))
+                                           ((list 'function alias)
+                                            `(function ,(intern* alias)))
+                                           ((list 'macro-function alias)
+                                            `(macro-function ,(intern* alias))))))))
       (let ((module-binding (symbolicate '%module-for-package- (package-name p))))
         `(import ,module-binding
            :binding ,(intern-spec bindings)
