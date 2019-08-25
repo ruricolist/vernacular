@@ -42,6 +42,8 @@ Influenced by, but not identical with, the R6RS syntax.")
 
 (defun expand-import-set (import-set get-exports
                           &optional (package *package*))
+  (unless (functionp get-exports)
+    (setf get-exports (constantly get-exports)))
   (fbindrec (get-exports
              (rec
               (lambda (import-set)

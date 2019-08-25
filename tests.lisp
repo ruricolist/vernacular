@@ -155,179 +155,171 @@
 (in-suite import-set)
 
 (test all
-  (is (null (expand-import-set :all (constantly nil))))
+  (is (null (expand-import-set :all nil)))
 
   (is (import-set=
        '(x)
-       (expand-import-set :all (constantly '(:x)))))
+       (expand-import-set :all '(:x))))
 
   (is (import-set=
        '(#'x)
        (expand-import-set :all-as-functions
-                          (constantly '(:x))))))
+                          '(:x)))))
 
 (test only
   (is (null
        (expand-import-set '(:only :all)
-                          (constantly nil))))
+                          nil)))
 
   (is (null
        (expand-import-set '(:only :all)
-                          (constantly '(:x)))))
+                          '(:x))))
 
   (is (import-set=
        '(x)
        (expand-import-set '(:only :all x)
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (is (import-set=
        '(#'x)
        (expand-import-set '(:only :all-as-functions #'x)
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   ;; Id not present.
   (signals error
-    (expand-import-set '(:only :all x)
-                       (constantly nil)))
+    (expand-import-set '(:only :all x) nil))
 
   (signals error
-    (expand-import-set '(:only :all x)
-                       (constantly '(:a))))
+    (expand-import-set '(:only :all x) '(:a)))
 
   ;; Importing a var as a function.
   (signals error
     (expand-import-set '(:only :all-as-functions x)
-                       (constantly '(:x :y :z))))
+                       '(:x :y :z)))
 
   ;; Importing a function as a var.
   (signals error
     (expand-import-set '(:only :all #'x)
-                       (constantly '(:x :y :z)))))
+                       '(:x :y :z))))
 
 (test except
   (is (null
-       (expand-import-set '(:except :all)
-                          (constantly nil))))
+       (expand-import-set '(:except :all) nil)))
 
   (is (import-set=
        '(x)
-       (expand-import-set '(:except :all)
-                          (constantly '(:x)))))
+       (expand-import-set '(:except :all) '(:x))))
 
   (is (import-set=
        '(y z)
        (expand-import-set '(:except :all x)
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (is (import-set=
        '(#'y #'z)
        (expand-import-set '(:except :all-as-functions #'x)
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (signals error
-    (expand-import-set '(:except :all x)
-                       (constantly nil)))
+    (expand-import-set '(:except :all x) nil))
 
   (signals error
-    (expand-import-set '(:except :all x)
-                       (constantly :a))))
+    (expand-import-set '(:except :all x) :a)))
 
 (test prefix
   (is (null
-       (expand-import-set '(:prefix :all my-)
-                          (constantly nil))))
+       (expand-import-set '(:prefix :all my-) nil)))
 
   (is (import-set= '(my-x my-y my-z)
                    (expand-import-set '(:prefix :all my-)
-                                      (constantly '(:x :y :z)))))
+                                      '(:x :y :z))))
 
   (is (import-set= '(nilx nily nilz)
                    (expand-import-set '(:prefix :all nil)
-                                      (constantly '(:x :y :z)))))
+                                      '(:x :y :z))))
 
   (is (import-set= '(#'my-x #'my-y #'my-z)
                    (expand-import-set '(:prefix :all-as-functions my-)
-                                      (constantly '(:x :y :z))))))
+                                      '(:x :y :z)))))
 
 (test drop-prefix
   (is (null
-       (expand-import-set '(:drop-prefix :all my-)
-                          (constantly nil))))
+       (expand-import-set '(:drop-prefix :all my-) nil)))
 
   (is (import-set=
        '(x y z)
        (expand-import-set '(:drop-prefix :all my-)
-                          (constantly '(:my-x :my-y :my-z)))))
+                          '(:my-x :my-y :my-z))))
 
   (is (import-set=
        '(x y z)
        (expand-import-set '(:drop-prefix :all nil)
-                          (constantly '(:nilx :nily :nilz)))))
+                          '(:nilx :nily :nilz))))
 
   (is (import-set=
        '(#'x #'y #'z)
        (expand-import-set '(:drop-prefix :all-as-functions my-)
-                          (constantly '(:my-x :my-y :my-z))))))
+                          '(:my-x :my-y :my-z)))))
 
 (test rename
   (is (null
        (expand-import-set '(:rename :all)
-                          (constantly nil))))
+                          nil)))
 
   (is (import-set=
        '(x)
        (expand-import-set '(:rename :all)
-                          (constantly '(:x)))))
+                          '(:x))))
 
   (is (import-set=
        '(a b c)
        (expand-import-set '(:rename :all (x a) (y b) (z c))
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (signals error
     (expand-import-set '(:rename :all-as-functions (x a) (y b) (z c))
-                       (constantly '(:x :y :z))))
+                       '(:x :y :z)))
 
   (is (import-set=
        '(#'a #'b #'c)
        (expand-import-set '(:rename :all-as-functions
                             (#'x #'a) (#'y #'b) (#'z #'c))
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (signals error
     (expand-import-set '(:rename :all
                          (#'x #'a) (#'y #'b) (#'z #'c))
-                       (constantly '(:x :y :z)))))
+                       '(:x :y :z))))
 
 (test alias
   (is (null
        (expand-import-set '(:alias :all)
-                          (constantly nil))))
+                          nil)))
 
   (is (import-set=
        '(x)
        (expand-import-set '(:alias :all)
-                          (constantly '(:x)))))
+                          '(:x))))
 
   (is (import-set=
        '(x y z a b c)
        (expand-import-set '(:alias :all (x a) (y b) (z c))
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (signals error
     (expand-import-set '(:alias :all-as-functions (x a) (y b) (z c))
-                       (constantly '(:x :y :z))))
+                       '(:x :y :z)))
 
   (is (import-set=
        '(#'a #'b #'c #'x #'y #'z)
        (expand-import-set '(:alias :all-as-functions
                             (#'x #'a) (#'y #'b) (#'z #'c))
-                          (constantly '(:x :y :z)))))
+                          '(:x :y :z))))
 
   (signals error
     (expand-import-set '(:alias :all
                          (#'x #'a) (#'y #'b) (#'z #'c))
-                       (constantly '(:x :y :z)))))
+                       '(:x :y :z))))
 
 
 ;;; Core Lisp.
