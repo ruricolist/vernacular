@@ -14,7 +14,7 @@
   (:import-from :s-base64 :encode-base64-bytes)
   (:export
    :find-file-package
-   :ensure-file-package
+   :intern-file-package
    :reset-file-package))
 
 (in-package :vernacular/file-package)
@@ -22,7 +22,7 @@
 (deftype symbol-status ()
   '(member null :internal :external :inherited))
 
-(defun ensure-file-package (file &key use-list)
+(defun intern-file-package (file &key use-list)
   (check-type file pathname-designator)
   (check-type use-list (list-of package-designator))
   (assure package
@@ -34,7 +34,7 @@
   (check-type use-list (list-of package-designator))
   (assure package
     (reset-package
-     (ensure-file-package file :use-list use-list))))
+     (intern-file-package file :use-list use-list))))
 
 (defun find-file-package (file &key use-list)
   (declare (ignore use-list))

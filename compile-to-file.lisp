@@ -3,7 +3,7 @@
   (:documentation "Compile a Lisp form into a fasl.")
   (:import-from #:overlord/types #:absolute-pathname)
   (:import-from #:overlord/asdf #:asdf-system-relative-pathname)
-  (:import-from #:vernacular/file-package #:ensure-file-package)
+  (:import-from #:vernacular/file-package #:intern-file-package)
   (:import-from #:trivial-macroexpand-all #:macroexpand-all)
   (:export #:compile-to-file #:load-as-module :fasl-ext :module))
 (in-package #:vernacular/compile-to-file)
@@ -27,7 +27,7 @@
   (asdf-system-relative-pathname :vernacular "universal.lisp"))
 
 (defmacro define-file-package (source)
-  (let* ((package (ensure-file-package source))
+  (let* ((package (intern-file-package source))
          (name (package-name package))
          (use-list (mapcar #'package-name (package-use-list package))))
     `(eval-always

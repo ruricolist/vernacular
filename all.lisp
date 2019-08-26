@@ -11,14 +11,14 @@
   (:import-from :vernacular/hash-table-module
     :hash-table-module)
   (:import-from :vernacular/file-package
-    :ensure-file-package
+    :intern-file-package
     :reset-file-package)
   (:import-from :vernacular/specials
     :*module* :*source*)
   (:export
    :module-ref :module-ref* :module-ref-ns :module-exports :module-static-exports
    :simple-module :hash-table-module :package-module
-   :ensure-file-package :reset-file-package
+   :intern-file-package :reset-file-package
    :*module* :*source*)
   (:use-reexport
    :vernacular/lang
