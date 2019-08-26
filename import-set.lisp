@@ -32,8 +32,7 @@ Influenced by, but not identical with, the R6RS syntax.")
   (equal x y))
 
 (defun rename-import (import new-name)
-  (assure binding-designator
-    (list (private-name import) :as new-name)))
+  (list (private-name import) :as new-name))
 
 (defun expand-import-set (import-set get-exports
                           &optional (package *package*))

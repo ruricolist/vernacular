@@ -832,10 +832,9 @@ return the lang and the position at which the #lang declaration ends."
          (error 'source-without-lang :source source)))))
 
 (defun guess-source (lang alias)
-  (~>> (etypecase-of import-alias alias
-         (var-alias alias)
-         ((or function-alias macro-alias)
-          (second alias)))
+  (~>> (ematch alias
+         ((type symbol) alias)
+         ((ns _ alias) alias))
        string-downcase
        (make-pathname :name)
        (merge-input-defaults lang)))

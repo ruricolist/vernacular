@@ -252,7 +252,7 @@ actually exported by the module specified by LANG and SOURCE."
 (defmacro import-module (module &body (&key as from once))
   "When ONCE is non-nil, the module will only be rebuilt if it has not
 yet been loaded."
-  (check-type module var-alias)
+  (check-type module symbol)
   (let ((req-form
           (if once
               `(require-once ',as ,from)
