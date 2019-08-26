@@ -1,5 +1,6 @@
 (uiop:define-package :vernacular/shadows
-    (:import-from :alexandria)
+  (:import-from :alexandria)
+  (:import-from :trivia :defpattern)
   (:nicknames :vernacular/cl)
   (:shadow
    #:module-progn
@@ -103,6 +104,9 @@
 (deftype cons (&optional x y)
   `(cl:cons ,x ,y))
 
+(defpattern cons (car cdr)
+  `(cl:cons ,car ,cdr))
+
 (defsubst cons  (x y) (cl:cons x y))
 (defsubst car   (x)   (cl:car x))
 (defsubst first (x)   (cl:first x))
@@ -133,6 +137,9 @@
 (deftype list ()
   'cl:list)
 
+(defpattern list (&rest args)
+  `(cl:list ,@args))
+
 (defsubst apply (function &rest args)
   (cl:apply #'cl:apply function args))
 
@@ -141,6 +148,9 @@
 
 (defsubst list* (&rest args)
   (apply #'cl:list* args))
+
+(defpattern list* (&rest args)
+  `(cl:list ,@args))
 
 (defsubst eval (form)
   (cl:eval form))
