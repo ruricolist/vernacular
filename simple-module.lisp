@@ -1,9 +1,10 @@
 (uiop:define-package :vernacular/simple-module
-    (:use)
+  (:use)
   (:documentation "Reference implementation of a module.
 Most languages will expand into `simple-module' forms.")
   (:mix :serapeum :alexandria :vernacular/shadows :vernacular/types)
   (:import-from :alexandria :mappend)
+  (:import-from :trivia :match :ematch)
   (:import-from :vernacular/types :vernacular-error)
   (:import-from :serapeum :op :car-safe :keep)
   (:import-from :vernacular/module :basic-module)
@@ -54,25 +55,26 @@ Most languages will expand into `simple-module' forms.")
 
 
 (defun export-keyword (spec)
-  (assure keyword
-    (etypecase-of export-spec spec
-      (var-spec (make-keyword spec))
-      (function-spec (export-keyword (second spec)))
-      ((or (tuple var-spec :as export-alias)
-           (tuple function-spec :as export-alias))
-       (make-keyword (third spec)))
-      ((or macro-spec (tuple macro-spec :as export-alias))
-       (error "Simple modules cannot export macros.")))))
+  (make-keyword
+   (ematch spec
+     ((or (list (ns 'macro-function _) :as _)
+          (ns 'macro-function _))
+      (error "Simple modules cannot export macros."))
+     ((type symbol) spec)
+     ((ns _ name) name)
+     ((list _ :as (and alias (type symbol)))
+      alias)
+     ((list _ :as (ns _ alias))
+      alias))))
 
 (defun export-binding (spec)
-  (assure (or var-spec function-spec)
-    (etypecase-of export-spec spec
-      (var-spec spec)
-      (function-spec spec)
-      ((tuple var-spec :as export-alias) (first spec))
-      ((tuple function-spec :as export-alias) (first spec))
-      ((or macro-spec (tuple macro-spec :as export-alias))
-       (error "Simple modules cannot export macros.")))))
+  (ematch spec
+    ((or (ns 'macro-function _)
+         (list (ns 'macro-function _) :as _))
+     (error "Simple modules cannot export macros."))
+    ((type symbol) spec)
+    ((ns _ _) spec)
+    ((list b :as _) b)))
 
 (defstruct (simple-module (:include basic-module)))
 
