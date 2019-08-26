@@ -15,11 +15,9 @@
    #:var-alias
    #:function-alias
    #:macro-alias
-   #:definable-symbol
    #:binding-designator
    #:canonical-binding
-   #:non-keyword
-   #:qualified-symbol))
+   #:non-keyword))
 (in-package :vernacular/types)
 
 (defcondition vernacular-error (overlord-error)
@@ -48,18 +46,6 @@
   '(and symbol
     (not (member nil t function quote))
     (not keyword)))
-
-(deftype definable-symbol ()
-  "To a rough approximation, a symbol that can/should be given a definition."
-  '(and symbol
-    (not (satisfies constantp))
-    (not keyword)                       ;works for functions, though.
-    (not cl-symbol)))
-
-(deftype qualified-symbol ()
-  `(and symbol
-        (not keyword)
-        (not cl-symbol)))
 
 (deftype non-keyword ()
   `(and symbol
