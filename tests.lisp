@@ -336,7 +336,7 @@
 (test islisp-dont-be-shadowed
   (is (equal '(:right :right :right)
              (with-imports* (m :from "tests/islisp/dont-be-shadowed.lsp"
-                               :binding (syms (xyz :as #'expand-xyz)))
+                               :binding (syms (#'xyz :as #'expand-xyz)))
                (destructuring-bind (x y z) syms
                  (eval
                   `(let ((,x :wrong)) (declare (ignorable ,x))

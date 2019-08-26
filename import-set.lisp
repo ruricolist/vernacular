@@ -9,22 +9,17 @@ Influenced by, but not identical with, the R6RS syntax.")
    :import-set=))
 (in-package :vernacular/import-set)
 
-(deftype public-name ()
-  '(or var-alias function-alias macro-alias))
-
-(deftype private-name ()
-  'keyword)
-
 (defun public-name+private-name (import)
   (receive (public private)
-      (etypecase-of binding-designator import
-        (var-spec (values import import))
-        (function-alias (values import (second import)))
-        (macro-alias (values import (second import)))
-        ((tuple symbol :as import-alias)
-         (destructuring-bind (private &key ((:as public))) import
-           (values public private))))
-    (values (assure public-name public)
+      (ematch import
+        ((type symbol)
+         (values import import))
+        ((ns _ private)
+         (values import private))
+        ((list private :as public)
+         (values (public-name public)
+                 (private-name private))))
+    (values public
             (make-keyword private))))
 
 (defun public-name (import)
@@ -55,7 +50,7 @@ Influenced by, but not identical with, the R6RS syntax.")
                   (:all-as-functions
                    (loop for export in (get-exports)
                          for sym = (intern (string export) package)
-                         collect `(,export :as #',sym)))
+                         collect `(#',export :as #',sym)))
                   ((list* :only import-set ids)
                    (only (rec import-set) ids))
                   ((list* :except import-set ids)
@@ -130,10 +125,11 @@ Influenced by, but not identical with, the R6RS syntax.")
 
 (defun frob-name (name fn)
   (fbind (fn)
-    (etypecase-of public-name name
-      (var-alias (assure var-alias (fn name)))
-      (function-alias (assure function-alias `(function ,(fn (second name)))))
-      (macro-alias (assure macro-alias `(macro-function ,(fn (second name))))))))
+    (ematch name
+      ((type symbol) (fn name))
+      ((list (and ns (type symbol))
+             name)
+       `(,ns ,(fn name))))))
 
 (defcondition import-set-condition ()
   ())

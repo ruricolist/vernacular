@@ -1,6 +1,7 @@
 (defpackage :vernacular/types
   (:documentation "Types used throughout.")
   (:use :cl :alexandria :serapeum :overlord/types)
+  (:import-from :trivia :defpattern)
   (:export
    #:vernacular-error
    ;; Imports and exports.
@@ -17,7 +18,8 @@
    #:macro-alias
    #:binding-designator
    #:canonical-binding
-   #:non-keyword))
+   #:non-keyword
+   #:ns))
 (in-package :vernacular/types)
 
 (defcondition vernacular-error (overlord-error)
@@ -40,6 +42,13 @@
     (do-external-symbols (s :cl)
       (when (constantp s)
         (collect s)))))
+
+(deftype ns ()
+  '(member nil function macro-function setf))
+
+(defpattern ns (ns sym)
+  `(list (and ,ns (type ns))
+         (and ,sym (type symbol))))
 
 (deftype bindable-symbol ()
   "To a rough approximation, a symbol that can/should be bound."

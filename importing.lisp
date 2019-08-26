@@ -16,6 +16,8 @@
     :vernacular/lang)
   (:import-from :trivia
     :match :ematch)
+  (:shadowing-import-from :trivia
+    :defpattern)
   (:import-from :overlord/types
     :error*
     :absolute-pathname)
@@ -67,7 +69,7 @@
       ((eql :all-as-functions)
        (loop for export in (get-static-exports)
              for sym = (intern (string export))
-             collect `(,export :as #',sym)))
+             collect `(#',export :as #',sym)))
       ((list :import-set import-set)
        (expand-import-set import-set #'get-static-exports))
       ((type list)
@@ -184,7 +186,6 @@
   ;; Avoid redundant calls to module-static-bindings.
   (~> bindings
       (expand-binding-spec lang source)
-      canonicalize-bindings
       (apply-prefix prefix)))
 
 (defmacro check-static-bindings-now (lang source bindings)
@@ -212,8 +213,7 @@ actually exported by the module specified by LANG and SOURCE."
      (if (relative-pathname-p source)
          (merge-pathnames* source (base))
          source)
-     (mapcar (op (import-keyword (first _)))
-             (canonicalize-bindings bindings)))))
+     (mapcar #'ortho-keyword bindings))))
 
 (defun check-exports (source bindings exports)
   "Make sure the bindings are a subset of the exports."
@@ -273,7 +273,7 @@ yet been loaded."
   (let ((task-name
           (ematch module
             ((type symbol) module)
-            ((list (or 'function 'macro-function) name)
+            ((list 'function name)
              name))))
     `(define-target-task ,task-name
        (setf ,module (require-as ',as ,from))
@@ -283,13 +283,13 @@ yet been loaded."
   `(progn
      ,@(collecting
          (dolist (clause values)
-           (receive (import alias ref) (import+alias+ref clause module)
-             (declare (ignore import))
+           (receive (ortho pseudo ref) (ortho+pseudo+ref clause module)
+             (declare (ignore ortho))
              (collect
-                 (ematch alias
-                   ((type symbol) `(setf ,alias ,ref))
-                   ((list 'function alias)
-                    `(setf (symbol-function ',alias) ,ref))
+                 (ematch pseudo
+                   ((type symbol) `(setf ,pseudo ,ref))
+                   ((list 'function pseudo)
+                    `(setf (symbol-function ',pseudo) ,ref))
                    ;; Do nothing. Macros cannot be imported as values.
                    ((list 'macro-function _)
                     nil))))))))
@@ -299,64 +299,73 @@ yet been loaded."
      ,@(mapcar (op `(import-binding ,module ,_)) values)))
 
 (defmacro import-binding (module clause)
-  (receive (import alias ref) (import+alias+ref clause module)
-    (declare (ignore import))
-    (ematch alias
+  (receive (ortho pseudo ref) (ortho+pseudo+ref clause module)
+    (declare (ignore ortho))
+    (ematch pseudo
       ((type symbol)
-       `(vernacular/shadows:def ,alias ,ref))
-      ((list 'function alias)
-       `(vernacular/shadows:defalias ,alias
+       `(vernacular/shadows:def ,pseudo ,ref))
+      ((list 'function pseudo)
+       `(vernacular/shadows:defalias ,pseudo
           (assure function (function-wrapper ,ref))))
-      ((list 'macro-function alias)
+      ((list 'macro-function pseudo)
        (with-gensyms (whole body env)
-         `(vernacular/shadows:defmacro ,alias (&whole ,whole &body ,body &environment ,env)
+         `(vernacular/shadows:defmacro ,pseudo (&whole ,whole &body ,body &environment ,env)
             (declare (ignore ,body))
             (funcall ,ref ,whole ,env)))))))
 
-(defun canonicalize-binding (clause)
-  (ematch clause
-    ((type symbol)
-     (list (make-keyword clause) clause))
-    ((list 'function name)
-     (list (make-keyword name) clause))
-    ((list 'macro-alias name)
-     (list (make-keyword name) clause))
-    ((list (and import (type symbol)) :as alias)
-     (list (make-keyword import) alias))))
-
-(defun canonicalize-bindings (clauses)
-  (mapcar #'canonicalize-binding clauses))
-
 (defun apply-prefix (clauses prefix)
   (if (null prefix) clauses
-      (flet ((prefix (suffix) (symbolicate prefix suffix)))
+      (flet ((prefix (suffix) (symbolicate prefix (assure symbol suffix))))
         (loop for (import alias) in clauses
               collect (list import
                             (ematch alias
                               ((type symbol)
                                (prefix alias))
-                              ((list 'function sym)
-                               `(function ,(prefix sym)))
-                              ((list 'macro-alias sym)
-                               `(macro-function ,(prefix sym)))))))))
+                              ((ns ns sym)
+                               `(,ns ,(prefix sym)))
+                              ((list orig :as (and alias (type symbol)))
+                               `(,orig :as ,(prefix alias)))
+                              ((list orig :as (ns ns alias))
+                               `(,orig :as (,ns ,(prefix alias))))))))))
 
-(defun import+alias+ref (clause module)
-  (destructuring-bind (import alias) (canonicalize-binding clause)
-    (let* ((key (import-keyword import))
-           (ref
-             (ematch alias
-               ((type symbol)
-                `(module-ref/inline-cache ,module ',key nil))
-               ((list 'function _)
-                `(module-ref/inline-cache ,module ',key 'function))
-               ((list 'macro-function _)
-                `(module-ref/inline-cache ,module ',key 'macro-function)))))
-      (values import alias ref))))
+(defun ortho+pseudo+ref (clause module)
+  "Parse CLAUSE into three terms:
+1. A (possibly qualified) orthonym.
+2. A (possibly qualified) pseudonym.
+3. A form to look up the orthonym of CLAUSE in MODULE."
+  (let* ((key (ortho-keyword clause))
+         (ns (ortho-namespace clause))
+         (ref `(module-ref/inline-cache ,module ',key ',ns)))
+    (values (ortho clause)
+            (pseudo clause)
+            ref)))
 
-(defun import-keyword (import)
-  (if (symbolp import)
-      (make-keyword import)
-      (make-keyword (second import))))
+(defun ortho-keyword (clause)
+  (values
+   (make-keyword
+    (ematch (ortho clause)
+      ((and sym (type symbol)) sym)
+      ((ns _ ortho)
+       ortho)))))
+
+(defun ortho-namespace (clause)
+  (ematch (ortho clause)
+    ((type symbol) nil)
+    ((ns ns _) ns)))
+
+(defun ortho (clause)
+  (ematch clause
+    ((type symbol) clause)
+    ((ns _ _) clause)
+    ((list ortho :as _)
+     ortho)))
+
+(defun pseudo (clause)
+  (ematch clause
+    ((type symbol) clause)
+    ((ns _ _) clause)
+    ((list _ :as pseudo)
+     pseudo)))
 
 (defmacro import/local (mod &body (&key from as binding prefix (once t))
                         &environment env)
@@ -430,12 +439,7 @@ the symbols bound in the body of the import form."
   (declare (ignore body))
   `(defpackage ,package-name
      (:use)
-     (:export ,@(nub (loop for (nil alias) in bindings
-                           collect (make-keyword
-                                    (ematch alias
-                                      ((type symbol) alias)
-                                      ((list 'function alias) alias)
-                                      ((list 'macro-function alias) alias))))))))
+     (:export ,@(nub (mapcar #'ortho-keyword bindings)))))
 
 (defmacro import-as-package-aux (package-name &body
                                                 (&rest body
@@ -444,17 +448,17 @@ the symbols bound in the body of the import form."
   (let ((p (assure package (find-package package-name))))
     (labels ((intern* (sym)
                (intern (string sym) p))
-             (intern-spec (spec)
-               (loop for (key alias) in spec
-                     collect `(,key :as ,(ematch alias
-                                           ((type symbol) (intern* alias))
-                                           ((list 'function alias)
-                                            `(function ,(intern* alias)))
-                                           ((list 'macro-function alias)
-                                            `(macro-function ,(intern* alias))))))))
+             (intern-bindings (bindings)
+               (loop for binding in bindings
+                     for pseudo = (pseudo binding)
+                     collect `(,(ortho binding)
+                               :as ,(ematch pseudo
+                                      ((type symbol) (intern* pseudo))
+                                      ((ns ns symbol)
+                                       `(,ns ,(intern* symbol))))))))
       (let ((module-binding (symbolicate '%module-for-package- (package-name p))))
         `(import ,module-binding
-           :binding ,(intern-spec bindings)
+           :binding ,(intern-bindings bindings)
            ,@body)))))
 
 (defun subpackage-full-name (child-package-name)
