@@ -316,17 +316,14 @@ yet been loaded."
 (defun apply-prefix (clauses prefix)
   (if (null prefix) clauses
       (flet ((prefix (suffix) (symbolicate prefix (assure symbol suffix))))
-        (loop for (import alias) in clauses
-              collect (list import
-                            (ematch alias
-                              ((type symbol)
-                               (prefix alias))
-                              ((ns ns sym)
-                               `(,ns ,(prefix sym)))
-                              ((list orig :as (and alias (type symbol)))
-                               `(,orig :as ,(prefix alias)))
-                              ((list orig :as (ns ns alias))
-                               `(,orig :as (,ns ,(prefix alias))))))))))
+        (loop for clause in clauses
+              collect (ematch clause
+                        ((type symbol) (list clause :as (prefix clause)))
+                        ((ns ns sym) (list clause :as `(,ns ,(prefix sym))))
+                        ((list orig :as (and alias (type symbol)))
+                         `(,orig :as ,(prefix alias)))
+                        ((list orig :as (ns ns alias))
+                         `(,orig :as (,ns ,(prefix alias)))))))))
 
 (defun ortho+pseudo+ref (clause module)
   "Parse CLAUSE into three terms:
