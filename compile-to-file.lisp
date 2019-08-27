@@ -76,8 +76,13 @@
 
 (defun load-as-module (file)
   "Load FILE and return whatever it assigns to `*module*'."
-  (let ((*module* no-module))
-    (load file :external-format :utf-8)
-    (if (module? *module*)
-        *module*
-        (error "No module in ~a" file))))
+  (restart-case
+      (let ((*module* no-module))
+        (load file :external-format :utf-8)
+        (if (module? *module*)
+            *module*
+            (error "No module in ~a" file)))
+    (delete-object-file ()
+      :report "Delete the object file."
+      (delete-file file)
+      (load-as-module file))))
