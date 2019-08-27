@@ -213,21 +213,22 @@ actually exported by the module specified by LANG and SOURCE."
      (if (relative-pathname-p source)
          (merge-pathnames* source (base))
          source)
-     (mapcar #'ortho-keyword bindings))))
+     bindings)))
 
 (defun check-exports (source bindings exports)
   "Make sure the bindings are a subset of the exports."
-  (unless (subsetp bindings exports :test #'string=)
-    (error 'binding-export-mismatch
-           :source source
-           :bindings bindings
-           :exports exports)))
+  (let ((bindings (nub (mapcar #'ortho-keyword bindings))))
+    (unless (subsetp bindings exports :test #'string=)
+      (error 'binding-export-mismatch
+             :source source
+             :bindings bindings
+             :exports exports))))
 
 (defun check-static-bindings-1 (lang source bindings)
   (check-type lang keyword)
   (check-type source absolute-pathname)
   ;; (check-type bindings (satisfies setp))
-  (unless (setp bindings)
+  (unless (setp bindings :test #'equal)
     (error* "Duplicated bindings in ~a" bindings))
   (receive (static-exports exports-statically-known?)
       (module-static-exports lang source)
@@ -342,12 +343,16 @@ yet been loaded."
    (make-keyword
     (ematch (ortho clause)
       ((and sym (type symbol)) sym)
+      ((function-spec 'setf sym)
+       sym)
       ((ns _ ortho)
        ortho)))))
 
 (defun ortho-namespace (clause)
   (ematch (ortho clause)
     ((type symbol) nil)
+    ((function-spec 'setf _)
+     'setf)
     ((ns ns _) ns)))
 
 (defun ortho (clause)

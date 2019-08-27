@@ -412,3 +412,12 @@ sufficient to cause a module to be recompiled."
     (is (/= n2 n3))
     (is (/= n4 n3))
     (is (/= n4 n2))))
+
+(test setter
+  (with-imports* (m :from "tests/setter.lisp"
+                    :binding (#'deref #'(setf deref)))
+    (is (= 1 (deref)))
+    (setf (deref) 2)
+    (is (= 2 (deref)))
+    (setf (deref) 1)
+    (is (= 1 (deref)))))

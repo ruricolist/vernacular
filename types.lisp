@@ -8,7 +8,8 @@
    #:import-alias
    #:bindable-symbol
    #:non-keyword
-   #:ns))
+   #:ns
+   #:function-spec))
 (in-package :vernacular/types)
 
 (defcondition vernacular-error (overlord-error)
@@ -52,4 +53,11 @@
 
 (defpattern ns (ns sym)
   `(list (and ,ns (type ns))
-         (and ,sym (type symbol))))
+         ,sym))
+
+;;; "Function spec" is Allegro's name for a list as a function name.
+
+(defpattern function-spec (ns &rest syms)
+  `(list 'function
+         (list (and ,ns (type symbol))
+               ,@syms)))

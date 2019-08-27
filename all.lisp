@@ -8,6 +8,8 @@
     :module-ref :module-ref* :module-ref-ns :module-exports :module-static-exports)
   (:import-from :vernacular/simple-module
     :simple-module)
+  (:import-from :vernacular/package-module
+    :package-module)
   (:import-from :vernacular/hash-table-module
     :hash-table-module)
   (:import-from :vernacular/file-package

@@ -61,6 +61,8 @@ Most languages will expand into `simple-module' forms.")
           (ns 'macro-function _))
       (error "Simple modules cannot export macros."))
      ((type symbol) spec)
+     ((function-spec 'setf name)
+      name)
      ((ns _ name) name)
      ((list _ :as (and alias (type symbol)))
       alias)
@@ -79,7 +81,7 @@ Most languages will expand into `simple-module' forms.")
 (defstruct (simple-module (:include basic-module)))
 
 (defmacro simple-module ((&rest exports) &body body)
-  (let ((export-keys (mapcar #'export-keyword exports)))
+  (let ((export-keys (nub (mapcar #'export-keyword exports))))
     `(make-simple-module
       :exports ',export-keys
       :exports-table (mlet ,exports
@@ -94,10 +96,10 @@ Most languages will expand into `simple-module' forms.")
        ,(mlet-get exports 'key))))
 
 (defun mlet-get (exports key)
+  ;; No duplicate exports.
+  (assert (length= exports (nub exports :test #'equal)))
   (let* ((export-keys (mapcar #'export-keyword exports))
          (export-bindings (mapcar #'export-binding exports)))
-    ;; No duplicate exports.
-    (assert (length= export-keys (nub export-keys)))
     `(case ,key
        ,@(mapcar #'list export-keys export-bindings)
        (t (vernacular-error "~a is not exported in this module."

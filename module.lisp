@@ -77,7 +77,11 @@ If MODULE does not use namespaces, this is the same as MODULE-REF.")
   (:argument-precedence-order module ns name)
   (:method (module name ns)
     (declare (ignore ns))
-    (module-ref module name)))
+    (module-ref module name))
+  ;; "Function specs".
+  (:method (module (name list) (ns (eql 'function)))
+    (destructuring-bind (ns name) name
+      (module-ref-ns module name ns))))
 
 (defgeneric module-exports (module)
   (:documentation "A list of names exported by MODULE.")
