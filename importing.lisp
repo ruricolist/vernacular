@@ -70,8 +70,9 @@
        (loop for export in (get-static-exports)
              for sym = (intern (string export))
              collect `(#',export :as #',sym)))
-      ((list :import-set import-set)
-       (expand-import-set import-set #'get-static-exports))
+      ((list* :import-set import-sets)
+       (mappend (op (expand-import-set _ #'get-static-exports))
+                import-sets))
       ((type list)
        spec))))
 
