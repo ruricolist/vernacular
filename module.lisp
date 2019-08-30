@@ -81,7 +81,19 @@ If MODULE does not use namespaces, this is the same as MODULE-REF.")
   ;; "Function specs".
   (:method (module (name list) (ns (eql 'function)))
     (destructuring-bind (ns name) name
-      (module-ref-ns module name ns))))
+      (module-ref-ns module name ns)))
+  ;; Methods on packages, for reference.
+  (:method ((m package) name (ns null))
+    (symbol-value (find-external-symbol name m :error t)))
+  (:method ((m package) name (ns (eql 'cl:macro-function)))
+    (let ((sym (find-external-symbol name m :error t)))
+      (or (macro-function sym)
+          (error "Not bound as a macro: ~s" sym))))
+  (:method ((m package) name (ns (eql 'cl:function)))
+    (symbol-function (find-external-symbol name m :error t)))
+  (:method ((m package) name (ns (eql 'setf)))
+    (let ((sym (find-external-symbol name m :error t)))
+      (fdefinition `(setf ,sym)))))
 
 (defgeneric module-exports (module)
   (:documentation "A list of names exported by MODULE.")

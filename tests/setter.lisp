@@ -1,6 +1,6 @@
-#lang vernacular/package-module
+#lang vernacular/simple-module
 
-(:export #'deref #'(setf deref-x))
+(:export #'deref #'(setf deref))
 
 (def storage 1)
 
