@@ -129,9 +129,8 @@ implementation that supports [package-local nicknames][].)
 
 It is recommended, although not required, that your language package
 inherit from `vernacular/cl` rather than from `cl`. The result is the
-same, except that `vernacular/cl` globally shadows Common Lisp’s binding
-and definition forms so they can, in turn, be shadowed locally by
-language implementations.
+same, except that `vernacular/cl` shadows Common Lisp’s binding and
+definition forms so they can be rebound by language implementations.
 
 The package must at least export a binding for one of `read-module`,
 for direct use, or `module-progn`, for use with a meta-language.
