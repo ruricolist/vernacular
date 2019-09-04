@@ -4,7 +4,7 @@
 Most languages will expand into `simple-module' forms.")
   (:mix :serapeum :alexandria :vernacular/shadows :vernacular/types)
   (:import-from :alexandria :mappend)
-  (:import-from :trivia :match :ematch)
+  (:import-from :trivia)
   (:import-from :vernacular/types :vernacular-error)
   (:import-from :serapeum :op :car-safe :keep)
   (:import-from :vernacular/module :basic-module :module-ref :module-ref-ns)
@@ -90,37 +90,20 @@ Most languages will expand into `simple-module' forms.")
   (values))
 
 (defun export-keyword (spec)
-  (make-keyword
-   (multiple-value-bind (name setter?)
-       (ematch spec
-         ((or (list (ns 'macro-function _) :as _)
-              (ns 'macro-function _))
-          (error 'no-modules-please))
-         ((type symbol) spec)
-         ((function-spec 'setf name)
-          (values name t))
-         ((ns 'setf name)
-          (values name t))
-         ((ns _ name) name)
-         ((list _ :as (and alias (type symbol)))
-          alias)
-         ((list _ :as (ns 'setf alias))
-          (values alias t))
-         ((list _ :as (ns _ alias))
-          alias))
-     (check-reserved-prefix name)
-     (if setter?
-         (setter-name name)
-         name))))
+  (when (eql 'macro-function (public-ns spec))
+    (error 'no-macros-please))
+  (values
+   (make-keyword
+    (let ((name (public-name spec)))
+      (check-reserved-prefix name)
+      (if (eql 'setf (public-ns spec))
+          (setter-name name)
+          name)))))
 
 (defun export-binding (spec)
-  (ematch spec
-    ((or (ns 'macro-function _)
-         (list (ns 'macro-function _) :as _))
-     (error 'no-modules-please))
-    ((type symbol) spec)
-    ((ns _ _) spec)
-    ((list b :as _) b)))
+  (if (eql 'macro-function (public-ns spec))
+      (error 'no-macros-please)
+      (private-side spec)))
 
 (defstruct (simple-module (:include basic-module)))
 

@@ -3,38 +3,17 @@
 Influenced by, but not identical with, the R6RS syntax.")
   (:use :cl :alexandria :serapeum
     :vernacular/types)
-  (:import-from :trivia :ematch)
+  (:import-from :trivia :match :ematch)
   (:export
    :expand-import-set
    :import-set=))
 (in-package :vernacular/import-set)
 
-(defun public-name+private-name (import)
-  (receive (public private)
-      (ematch import
-        ((type symbol)
-         (values import import))
-        ((ns 'function (list 'setf private))
-         (values import private))
-        ((ns _ private)
-         (values import private))
-        ((list private :as public)
-         (values (public-name public)
-                 (private-name private))))
-    (values public
-            (make-keyword private))))
-
-(defun public-name (import)
-  (nth-value 0 (public-name+private-name import)))
-
-(defun private-name (import)
-  (nth-value 1 (public-name+private-name import)))
-
-(defun public-name= (x y)
-  (equal x y))
-
 (defun rename-import (import new-name)
-  (list (private-name import) :as new-name))
+  `(,(private-side import)
+    :as
+    (,(public-ns new-name)
+     ,(public-name new-name))))
 
 (defun expand-import-set (import-set get-exports
                           &optional (package *package*))
@@ -60,19 +39,22 @@ Influenced by, but not identical with, the R6RS syntax.")
                    (only (rec import-set) ids))
                   ((list* :except import-set ids)
                    (except (rec import-set) ids))
+                  ;; Renames are a list of (old-name new-name).
                   ((list* :rename import-set renames)
                    (rename (rec import-set) renames))
                   ((list :prefix import-set prefix)
                    (prefix (rec import-set) prefix))
                   ((list :drop-prefix import-set prefix)
                    (drop-prefix (rec import-set) prefix))
+                  ;; Alias is just like rename, except that the old
+                  ;; binding isn't removed.
                   ((list* :alias import-set renames)
                    (alias (rec import-set) renames))))))
     (nub (rec import-set))))
 
 (defun only (import-set ids)
   (reduce (lambda (out id)
-            (if-let (import (find id import-set :test #'named?))
+            (if-let (import (find-id id import-set))
               (cons import out)
               (missing-id id import-set)))
           ids
@@ -80,35 +62,29 @@ Influenced by, but not identical with, the R6RS syntax.")
 
 (defun except (import-set ids)
   (reduce (lambda (import-set id)
-            (if-let (import (find id import-set :test #'named?))
+            (if-let (import (find-id id import-set))
               (remove import import-set)
               (missing-id id import-set)))
           ids
           :initial-value import-set))
 
 (defun rename (import-set renames)
-  (reduce (lambda (import-set renaming)
-            (receive (old-name new-name) (old-name+new-name renaming)
-              (if-let (import (find old-name import-set :test #'named?))
-                (cons (rename-import import new-name)
-                      (remove import import-set))
-                (missing-id old-name import-set))))
-          renames
-          :initial-value import-set))
+  (rename-alias-common import-set renames t))
 
 (defun alias (import-set renames)
+  (rename-alias-common import-set renames nil))
+
+(defun rename-alias-common (import-set renames remove?)
   (reduce (lambda (import-set renaming)
-            (receive (old-name new-name) (old-name+new-name renaming)
-              (if-let (import (find old-name import-set :test #'named?))
+            (destructuring-bind (old-name new-name) renaming
+              (if-let (import (find-id old-name import-set))
                 (cons (rename-import import new-name)
-                      import-set)
+                      (if remove?
+                          (remove import import-set)
+                          import-set))
                 (missing-id old-name import-set))))
           renames
           :initial-value import-set))
-
-(defun old-name+new-name (renaming)
-  (destructuring-bind (old-name new-name) renaming
-    (values old-name new-name)))
 
 (defun prefix (import-set prefix)
   (mass-rename import-set (op (symbolicate prefix _))))
@@ -124,17 +100,13 @@ Influenced by, but not identical with, the R6RS syntax.")
 
 (defun mass-rename (import-set rename-fn)
   (loop for import in import-set
-        for public-name = (public-name import)
-        for new-name = (frob-name public-name rename-fn)
+        for new-name = (frob-name (public-side import) rename-fn)
         collect (rename-import import new-name)))
 
-(defun frob-name (name fn)
-  (fbind (fn)
-    (ematch name
-      ((type symbol) (fn name))
-      ((list (and ns (type symbol))
-             name)
-       `(,ns ,(fn name))))))
+(defun frob-name (spec frob)
+  (fbind (frob)
+    `(,(public-ns spec)
+      ,(frob (public-name spec)))))
 
 (defcondition import-set-condition ()
   ())
@@ -147,10 +119,22 @@ Influenced by, but not identical with, the R6RS syntax.")
          :format-control "Missing id ~a in import set ~s"
          :format-arguments (list id import-set)))
 
-(defun named? (name import)
-  (public-name= name (public-name import)))
+(defun find-id (id imports)
+  (find (public-side id)
+        imports
+        :key #'public-side
+        :test #'equal))
 
 (defun import-set= (set1 set2)
   (set-equal set1 set2
-             :key #'public-name
-             :test #'public-name=))
+             :key #'public-side
+             :test (lambda (x y)
+                     (let ((x
+                             (match x
+                               ((list nil x) x)
+                               (t x)))
+                           (y
+                             (match y
+                               ((list nil y) y)
+                               (t y))))
+                       (equal x y)))))

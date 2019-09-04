@@ -22,8 +22,7 @@
   (:import-from :vernacular/compile-to-file
     :compile-to-file :load-as-module :fasl-ext)
   (:import-from :trivia
-    :match :ematch :let-match1 :multiple-value-ematch
-    :multiple-value-match)
+    :match :ematch)
   (:import-from :overlord/freeze
     :frozen?
     :*before-hard-freeze-hook*)
@@ -837,9 +836,7 @@ return the lang and the position at which the #lang declaration ends."
          (error 'source-without-lang :source source)))))
 
 (defun guess-source (lang alias)
-  (~>> (ematch alias
-         ((type symbol) alias)
-         ((ns _ alias) alias))
+  (~>> (public-name alias)
        string-downcase
        (make-pathname :name)
        (merge-input-defaults lang)))

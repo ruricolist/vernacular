@@ -1,7 +1,7 @@
 (defpackage :vernacular/types
   (:documentation "Types used throughout.")
   (:use :cl :alexandria :serapeum :overlord/types)
-  (:import-from :trivia :defpattern)
+  (:import-from :trivia :defpattern :ematch :match)
   (:export
    #:vernacular-error
    ;; Imports and exports.
@@ -9,7 +9,13 @@
    #:bindable-symbol
    #:non-keyword
    #:ns
-   #:function-spec))
+   #:function-spec
+   #:public-side
+   #:private-side
+   #:public-name
+   #:public-ns
+   #:private-name
+   #:private-ns))
 (in-package :vernacular/types)
 
 (defcondition vernacular-error (overlord-error)
@@ -61,3 +67,47 @@
   `(list 'function
          (list (and ,ns (type symbol))
                ,@syms)))
+
+(defun ns+name (spec)
+  (ematch spec
+    ((and sym (type symbol))
+     (values nil sym))
+    ((function-spec ns sym)
+     (values ns sym))
+    ((ns ns sym)
+     (values ns sym))))
+
+(defun public-side (clause)
+  (ematch clause
+    ((type symbol) clause)
+    ((function-spec ns name)
+     (list ns name))
+    ((ns nil name) name)
+    ((ns _ _) clause)
+    ((list _ :as public)
+     (public-side public))))
+
+(defun private-side (clause)
+  (ematch clause
+    ((type symbol) clause)
+    ((function-spec _ _)
+     clause)
+    ((ns nil name) name)
+    ;; The private side should be something that can be evaluated.
+    ((ns 'setf name)
+     `#'(function (setf ,name)))
+    ((ns _ _) clause)
+    ((list private :as _)
+     (private-side private))))
+
+(defun public-name (clause)
+  (nth-value 1 (ns+name (public-side clause))))
+
+(defun public-ns (clause)
+  (nth-value 0 (ns+name (public-side clause))))
+
+(defun private-name (spec)
+  (nth-value 1 (ns+name (private-side spec))))
+
+(defun private-ns (spec)
+  (nth-value 0 (ns+name (private-side spec))))

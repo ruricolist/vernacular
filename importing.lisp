@@ -219,8 +219,11 @@ actually exported by the module specified by LANG and SOURCE."
 
 (defun check-exports (source bindings exports)
   "Make sure the bindings are a subset of the exports."
-  (let ((bindings (nub (mapcar #'ortho-keyword bindings))))
-    (unless (subsetp bindings exports :test #'string=)
+  (let ((bindings (nub (mapcar #'private-keyword bindings))))
+    (unless (loop for binding in bindings
+                  for name = (private-name binding)
+                  always (find name exports :key #'public-name
+                                            :test #'string=))
       (error 'binding-export-mismatch
              :source source
              :bindings bindings
@@ -273,11 +276,7 @@ yet been loaded."
        :binding ((default :as ,var)))))
 
 (defmacro import-task (module &body (&key as from values))
-  (let ((task-name
-          (ematch module
-            ((type symbol) module)
-            ((list 'function name)
-             name))))
+  (let ((task-name (public-name module)))
     `(define-target-task ,task-name
        (setf ,module (require-as ',as ,from))
        (update-value-bindings ,module ,@values))))
@@ -285,34 +284,42 @@ yet been loaded."
 (defmacro update-value-bindings (module &body values)
   `(progn
      ,@(collecting
-         (dolist (clause values)
-           (receive (ortho pseudo ref) (ortho+pseudo+ref clause module)
-             (declare (ignore ortho))
-             (collect
-                 (ematch pseudo
-                   ((type symbol) `(setf ,pseudo ,ref))
-                   ((list 'function pseudo)
-                    `(setf (symbol-function ',pseudo) ,ref))
-                   ;; Do nothing. Macros cannot be imported as values.
-                   ((list 'macro-function _)
-                    nil))))))))
+         (loop for clause in values
+               for name = (public-name clause)
+               for ns = (public-ns clause)
+               for ref = (private-ref clause module)
+               collect (ecase ns
+                         ((nil) `(setf ,name ,ref))
+                         ((function)
+                          `(setf (symbol-function ',name) ,ref))
+                         ((setf)
+                          `(setf (fdefinition '(setf ,name)) ,ref))
+                         ;; Do nothing. Macros cannot be imported as values.
+                         ((macro-function)
+                          nil))))))
 
 (defmacro import-bindings (module &body values)
   `(progn
      ,@(mapcar (op `(import-binding ,module ,_)) values)))
 
+(defmacro import-function (name ref)
+  `(vernacular/shadows:defalias ,name
+     (assure function (function-wrapper ,ref))))
+
 (defmacro import-binding (module clause)
-  (receive (ortho pseudo ref) (ortho+pseudo+ref clause module)
-    (declare (ignore ortho))
-    (ematch pseudo
-      ((type symbol)
-       `(vernacular/shadows:def ,pseudo ,ref))
-      ((list 'function pseudo)
-       `(vernacular/shadows:defalias ,pseudo
-          (assure function (function-wrapper ,ref))))
-      ((list 'macro-function pseudo)
+  (let ((ns (public-ns clause))
+        (name (public-name clause))
+        (ref (private-ref clause module)))
+    (ecase ns
+      ((nil)
+       `(vernacular/shadows:def ,name ,ref))
+      (function
+       `(import-function ,name ,ref))
+      (setf
+       `(import-function (setf ,name) ,ref))
+      (macro-function
        (with-gensyms (whole body env)
-         `(vernacular/shadows:defmacro ,pseudo (&whole ,whole &body ,body &environment ,env)
+         `(vernacular/shadows:defmacro ,name (&whole ,whole &body ,body &environment ,env)
             (declare (ignore ,body))
             (funcall ,ref ,whole ,env)))))))
 
@@ -320,63 +327,31 @@ yet been loaded."
   (if (null prefix) clauses
       (flet ((prefix (suffix) (symbolicate prefix (assure symbol suffix))))
         (loop for clause in clauses
-              collect (ematch clause
-                        ((type symbol) (list clause :as (prefix clause)))
-                        ((ns ns sym) (list clause :as `(,ns ,(prefix sym))))
-                        ((list orig :as (and alias (type symbol)))
-                         `(,orig :as ,(prefix alias)))
-                        ((list orig :as (ns ns alias))
-                         `(,orig :as (,ns ,(prefix alias)))))))))
+              for private = (private-side clause)
+              for ns = (public-ns clause)
+              for name = (prefix (public-name clause))
+              collect `(,private :as (,ns ,name))))))
 
-(defun ortho+pseudo+ref (clause module)
+(defun private-ref (clause module)
+  (let* ((key (private-keyword clause))
+         (ns (private-ns clause)))
+    `(module-ref/inline-cache ,module ',key ',ns)))
+
+(defun private+public+ref (clause module)
   "Parse CLAUSE into three terms:
-1. A (possibly qualified) orthonym.
-2. A (possibly qualified) pseudonym.
-3. A form to look up the orthonym of CLAUSE in MODULE."
-  (let* ((key (ortho-keyword clause))
-         (ns (ortho-namespace clause))
-         (ref `(module-ref/inline-cache ,module ',key ',ns)))
-    (values (ortho clause)
-            (pseudo clause)
-            ref)))
+1. A (possibly qualified) private name.
+2. A (possibly qualified) public name.
+3. A form to look up the private name of CLAUSE in MODULE."
+  (values (private-side clause)
+          (public-side clause)
+          (private-ref clause module)))
 
-(defun ortho-symbol (clause)
-  (values
-   (ematch (ortho clause)
-     ((and sym (type symbol))
-      sym)
-     ((function-spec 'setf sym)
-      sym)
-     ((ns _ ortho)
-      ortho))))
-
-(defun ortho-keyword (clause)
-  (let ((sym (ortho-symbol clause)))
+(defun private-keyword (clause)
+  (let ((sym (private-name clause)))
     (if (eql (symbol-package sym)
              (find-package :vernacular/symbols))
         sym
         (make-keyword sym))))
-
-(defun ortho-namespace (clause)
-  (ematch (ortho clause)
-    ((type symbol) nil)
-    ((function-spec 'setf _)
-     'setf)
-    ((ns ns _) ns)))
-
-(defun ortho (clause)
-  (ematch clause
-    ((type symbol) clause)
-    ((ns _ _) clause)
-    ((list ortho :as _)
-     ortho)))
-
-(defun pseudo (clause)
-  (ematch clause
-    ((type symbol) clause)
-    ((ns _ _) clause)
-    ((list _ :as pseudo)
-     pseudo)))
 
 (defmacro import/local (mod &body (&key from as binding prefix (once t))
                         &environment env)
@@ -450,7 +425,7 @@ the symbols bound in the body of the import form."
   (declare (ignore body))
   `(defpackage ,package-name
      (:use)
-     (:export ,@(nub (mapcar #'ortho-keyword bindings)))))
+     (:export ,@(nub (mapcar #'private-keyword bindings)))))
 
 (defmacro import-as-package-aux (package-name &body
                                                 (&rest body
@@ -461,12 +436,9 @@ the symbols bound in the body of the import form."
                (intern (string sym) p))
              (intern-bindings (bindings)
                (loop for binding in bindings
-                     for pseudo = (pseudo binding)
-                     collect `(,(ortho binding)
-                               :as ,(ematch pseudo
-                                      ((type symbol) (intern* pseudo))
-                                      ((ns ns symbol)
-                                       `(,ns ,(intern* symbol))))))))
+                     collect `(,(private-side binding)
+                               :as (,(public-ns binding)
+                                    ,(intern* (public-name binding)))))))
       (let ((module-binding (symbolicate '%module-for-package- (package-name p))))
         `(import ,module-binding
            :binding ,(intern-bindings bindings)
