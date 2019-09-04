@@ -340,18 +340,22 @@ yet been loaded."
             (pseudo clause)
             ref)))
 
-(defun ortho-keyword (clause)
+(defun ortho-symbol (clause)
   (values
    (ematch (ortho clause)
      ((and sym (type symbol))
-      (if (eql (symbol-package sym)
-               (find-package :vernacular/symbols))
-          sym
-          (make-keyword sym)))
+      sym)
      ((function-spec 'setf sym)
-      (make-keyword sym))
+      sym)
      ((ns _ ortho)
-      (make-keyword ortho)))))
+      ortho))))
+
+(defun ortho-keyword (clause)
+  (let ((sym (ortho-symbol clause)))
+    (if (eql (symbol-package sym)
+             (find-package :vernacular/symbols))
+        sym
+        (make-keyword sym))))
 
 (defun ortho-namespace (clause)
   (ematch (ortho clause)
