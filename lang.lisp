@@ -693,9 +693,12 @@ name in the current package."
                  sym)))))))
 
 (defparameter *file-local-variables*
-  '(*package* *readtable*
+  '(*package*
+    *readtable*
     ;; These seem like a good idea to me.
-    *read-base* *read-default-float-format*
+    *read-base*
+    *read-default-float-format*
+    *features*
     *file-local-variables*)
   "Variables that should be given fresh rebindings while reading in a
   module.
