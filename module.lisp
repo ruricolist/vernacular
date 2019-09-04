@@ -6,6 +6,8 @@
   (:import-from #:trivial-garbage
     #:make-weak-pointer
     #:weak-pointer-value)
+  (:import-from #:vernacular/symbols
+    #:default)
   (:export
    ;; Module-related conditions
    #:module-error
@@ -137,29 +139,31 @@ If the module is valid, return it.")
 (defmethod module-ref ((module basic-module) key)
   (funcall (basic-module-exports-table module) module key))
 
-(defconst default-key :default)
+(defconst default-key 'default)
 
 (defconst default-export-module-exports
   (list default-key))
 
 (defstruct-read-only (default-export-module
                       (:constructor default-export-module (default)))
-  "A module with a single export named :default."
+  "A module with a single export named 'vernacular:default."
   default)
 
 (defmethod module-exports ((module default-export-module))
   default-export-module-exports)
 
+(defmethod module-ref ((module default-export-module)
+                       (key (eql '#.default-key)))
+  (default-export-module-default module))
+
 (defmethod module-ref ((module default-export-module) key)
-  (if (eql key default-key)
-      (default-export-module-default module)
-      (error 'no-such-export
-             :module module
-             :key key)))
+  (error 'no-such-export
+         :module module
+         :key key))
 
 (defun default-export-table (default)
-  "Return an export table with a single binding, `:default', mapped to
-DEFAULT."
+  "Return an export table with a single binding, `vernacular:default',
+mapped to DEFAULT."
   (lambda (module key)
     (if (eql key default-key) default
         (error "Module ~a has no export named ~a" module key))))

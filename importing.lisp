@@ -23,6 +23,8 @@
     :absolute-pathname)
   (:import-from :overlord/freeze
     :*before-hard-freeze-hook*)
+  (:import-from :vernacular/symbols
+    :default)
   (:import-from :vernacular/types
     :vernacular-error)
   (:import-from :vernacular/shadows)
@@ -114,19 +116,18 @@
        (let ((source (resolve-source source)))
          (values (resolve-lang
                   (or (guess-lang source)
-                      (required-argument :as)))
+                      (error* "Failed to guess source, and no language is specified.")))
                  source)))
       ;; We have the language, but not the source.
       ((and lang (no source))
        (values (resolve-lang lang)
                (resolve-source
                 (or (guess-source lang module)
+                    (error* "Failed to guess source, and no source is specified.")
                     (required-argument :from)))))
       ;; We have neither the language nor the source.
       ((nor lang source)
-       (whichever
-        (required-argument :as)
-        (required-argument :from))))))
+       (error* "We need a source file or a language.")))))
 
 (defun resolve-import-spec
     (&key lang source bindings module (base (base)) env prefix)
@@ -269,7 +270,7 @@ yet been loaded."
     `(import ,module-name
        :as ,as
        :from ,from
-       :binding ((:default :as ,var)))))
+       :binding ((default :as ,var)))))
 
 (defmacro import-task (module &body (&key as from values))
   (let ((task-name
@@ -341,13 +342,16 @@ yet been loaded."
 
 (defun ortho-keyword (clause)
   (values
-   (make-keyword
-    (ematch (ortho clause)
-      ((and sym (type symbol)) sym)
-      ((function-spec 'setf sym)
-       sym)
-      ((ns _ ortho)
-       ortho)))))
+   (ematch (ortho clause)
+     ((and sym (type symbol))
+      (if (eql (symbol-package sym)
+               (find-package :vernacular/symbols))
+          sym
+          (make-keyword sym)))
+     ((function-spec 'setf sym)
+      (make-keyword sym))
+     ((ns _ ortho)
+      (make-keyword ortho)))))
 
 (defun ortho-namespace (clause)
   (ematch (ortho clause)
@@ -404,7 +408,7 @@ yet been loaded."
                     :from ,from
                     :as ,as
                     :once ,once
-                    :binding ((:default :as ,bind)))
+                    :binding ((default :as ,bind)))
        ,@body)))
 
 (defmacro import-as-package (package-name

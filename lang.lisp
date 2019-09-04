@@ -29,6 +29,8 @@
     :*before-hard-freeze-hook*)
   (:import-from :overlord/specials
     :*base* :*base-package*)
+  (:import-from :vernacular/symbols
+    :default)
   (:import-from :vernacular/specials
     :*language*
     :*default-lang*
@@ -303,7 +305,7 @@ Otherwise return nil."
 
 (defun dynamic-require-default (lang source &key force)
   (let ((module (dynamic-require-as lang source :force force)))
-    (module-ref module :default)))
+    (module-ref module 'default)))
 
 (defun dynamic-require-as (lang source &key force
                                             (base (base)))
@@ -353,7 +355,7 @@ Two args is treated as the language and the source."
     `(dynamic-require-as ,lang ,source :base ,(base))))
 
 (defmacro require-default (&rest args)
-  `(module-ref* (require-as ,@args) :default))
+  `(module-ref* (require-as ,@args) 'default))
 
 (defun require-for-emacs (lang source)
   "Like `dynamic-require-as', but with looser restrictions for easy
@@ -827,11 +829,11 @@ return the lang and the position at which the #lang declaration ends."
   (when-let (name (file-emacs-mode source))
     (make-keyword (string-upcase name))))
 
-(defun source-lang (source &optional (default *default-lang*))
+(defun source-lang (source &optional (default-lang *default-lang*))
   (let ((source (resolve-file source)))
     (lang-name
      (or (guess-lang source)
-         default
+         default-lang
          (error 'source-without-lang :source source)))))
 
 (defun guess-source (lang alias)
