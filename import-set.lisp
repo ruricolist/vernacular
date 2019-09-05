@@ -44,6 +44,9 @@ Influenced by, but not identical with, the R6RS syntax.")
                    (rename (rec import-set) renames))
                   ((list :prefix import-set prefix)
                    (prefix (rec import-set) prefix))
+                  ;; Same thing as :prefix.
+                  ((list :add-prefix import-set prefix)
+                   (rec `(:prefix ,import-set ,prefix)))
                   ((list :drop-prefix import-set prefix)
                    (drop-prefix (rec import-set) prefix))
                   ;; Alias is just like rename, except that the old
