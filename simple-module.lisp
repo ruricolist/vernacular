@@ -7,7 +7,10 @@ Most languages will expand into `simple-module' forms.")
   (:import-from :trivia)
   (:import-from :vernacular/types :vernacular-error)
   (:import-from :serapeum :op :car-safe :keep)
-  (:import-from :vernacular/module :basic-module :module-ref :module-ref-ns)
+  (:import-from :vernacular/module
+    :module-ref
+    :module-ref-ns
+    :module-exports)
   (:import-from :vernacular/parsers :slurp-stream :slurp-file)
   (:import-from :vernacular/importing :with-imports)
   (:shadow :read-module :module-progn)
@@ -21,29 +24,23 @@ Most languages will expand into `simple-module' forms.")
 
 (in-package :vernacular/simple-module)
 
-(defconst reserved-prefix '%)
-
 (defcondition simple-module-error (vernacular-error)
-  ())
+  ((module :initarg :module)))
+
+(defcondition ns-error (simple-module-error)
+  ((ns :initarg :ns)))
 
 (defcondition no-macros-please (simple-module-error)
   ()
   (:report (cl:lambda (c s) (declare (ignore c))
              (format s "Simple modules cannot export macros."))))
 
-(defcondition reserved-prefix (simple-module-error)
+(defcondition not-exported (ns-error)
   ((name :initarg :name))
   (:report (cl:lambda (c s)
-             (with-slots (name) c
-               (format s "Simple modules forbid exports starting with ~a."
-                       reserved-prefix)))))
-
-(defcondition not-exported (simple-module-error)
-  ((name :initarg :name))
-  (:report (cl:lambda (c s)
-             (with-slots (name) c
-               (format s "~s not exported by this module."
-                       name)))))
+             (with-slots (module name) c
+               (format s "~s not exported by module ~a."
+                       name module)))))
 
 (defun read-module (source stream)
   (declare (ignore source))
@@ -72,68 +69,69 @@ Most languages will expand into `simple-module' forms.")
 
 (defun static-exports (source)
   (let* ((forms (slurp-file source))
-         (export-forms (keep :export forms :key #'car))
-         (exports (mappend #'rest export-forms)))
-    (mapcar #'export-keyword exports)))
+         (export-forms (keep :export forms :key #'car)))
+    (mappend #'rest export-forms)))
 
 
 
-(defun setter-name (name)
-  (make-keyword
-   (string+ reserved-prefix
-            'set-
-            name)))
+(defun export-expr (spec)
+  (cond ((eql 'macro-function (public-ns spec))
+         (error 'no-macros-please))
+        ((eql 'setf (private-ns spec))
+         `(function (setf ,(private-name spec))))
+        (t (private-side spec))))
 
-(defun check-reserved-prefix (name)
-  (when (string^= reserved-prefix name)
-    (error 'reserved-prefix :name name))
-  (values))
+(defstruct-read-only simple-module
+  (exports nil :type list)
+  (exports-table (lambda (module key ns)
+                   (error 'not-exported
+                          :module module
+                          :ns ns
+                          :name key))
+                 :type function))
 
-(defun export-keyword (spec)
-  (when (eql 'macro-function (public-ns spec))
-    (error 'no-macros-please))
-  (values
-   (make-keyword
-    (let ((name (public-name spec)))
-      (check-reserved-prefix name)
-      (if (eql 'setf (public-ns spec))
-          (setter-name name)
-          name)))))
-
-(defun export-binding (spec)
-  (if (eql 'macro-function (public-ns spec))
-      (error 'no-macros-please)
-      (private-side spec)))
-
-(defstruct (simple-module (:include basic-module)))
+(defmethod module-exports ((sm simple-module))
+  (simple-module-exports sm))
 
 (defmethod module-ref-ns ((sm simple-module) name (ns (eql 'macro-function)))
   (declare (ignore name))
   (error 'no-macros-please))
 
-(defmethod module-ref-ns ((sm simple-module) name (ns (eql 'setf)))
-  (module-ref sm (setter-name name)))
+(defmethod module-ref-ns ((sm simple-module) name ns)
+  (funcall (simple-module-exports-table sm) sm name ns))
 
 (defmacro simple-module ((&rest exports) &body body)
-  (let ((export-keys (nub (mapcar #'export-keyword exports))))
+  (let ((export-keys (nub (mapcar #'public-side exports))))
     `(make-simple-module
       :exports ',export-keys
       :exports-table (mlet ,exports
                        ,@body))))
 
-(defmacro mlet (exports &body body)
-  `(local*
-     ,@body
-     ;; The name for the lambda is just to make debugging easier.
-     (named-lambda ,(string-gensym 'simple-module-lookup) (module key)
-       (declare (ignore module))
-       ,(mlet-get exports 'key))))
+(defun not-exported (module name ns)
+  (error 'not-exported
+         :module module
+         :name name
+         :ns ns))
 
-(defun mlet-get (exports key)
-  ;; No duplicate exports.
-  (assert (length= exports (nub exports :test #'equal)))
-  (let* ((export-keys (mapcar #'export-keyword exports))
-         (export-bindings (mapcar #'export-binding exports)))
-    `(case ,key
-       ,@(mapcar #'list export-keys export-bindings)
-       (t (error 'not-exported :name ,key)))))
+(defmacro mlet (exports &body body)
+  (setf exports (nub exports))
+  (with-unique-names (simple-module-lookup)
+    `(local*
+       ,@body
+       ;; The name for the lambda is just to make debugging easier.
+       (named-lambda ,simple-module-lookup (module key ns)
+         ,(let ((by-ns (assort exports :key #'public-ns)))
+            `(case ns
+               ,@(loop for group in by-ns
+                       for ns = (public-ns (first group))
+                       ;; Wrap the ns in a list to keep the expansion
+                       ;; readable. (No sharp quote.)
+                       collect `((,ns)
+                                 (case key
+                                   ,@(loop for export in group
+                                           for key = (make-keyword (public-name export))
+                                           collect `((,key) ,(export-expr export)))
+                                   (otherwise
+                                    (not-exported module key ns)))))
+               (otherwise
+                (not-exported module key ns))))))))

@@ -1,6 +1,6 @@
 #lang vernacular/simple-module
 
-(:export #'make #'rows #'cols #'ref #'each (#'put! :as set!))
+(:export #'make #'rows #'cols #'ref #'each (#'put! :as #'set!))
 
 (defun make (n m)
   (let ((grid (make-array n)))

@@ -1,5 +1,5 @@
 (defpackage :vernacular/symbols
-  (:documentation "Export important symbols, without definitions.")
+  (:documentation "Symbols from this package are used in a keyword-like manner.")
   (:use)
   (:export :default :main))
 

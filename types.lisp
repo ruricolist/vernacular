@@ -101,13 +101,17 @@
      (private-side private))))
 
 (defun public-name (clause)
-  (nth-value 1 (ns+name (public-side clause))))
+  (assure symbol
+    (nth-value 1 (ns+name (public-side clause)))))
 
 (defun public-ns (clause)
-  (nth-value 0 (ns+name (public-side clause))))
+  (assure symbol
+    (nth-value 0 (ns+name (public-side clause)))))
 
 (defun private-name (spec)
-  (nth-value 1 (ns+name (private-side spec))))
+  (assure symbol
+    (nth-value 1 (ns+name (private-side spec)))))
 
 (defun private-ns (spec)
-  (nth-value 0 (ns+name (private-side spec))))
+  (assure symbol
+    (nth-value 0 (ns+name (private-side spec)))))

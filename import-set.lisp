@@ -34,10 +34,23 @@ Influenced by, but not identical with, the R6RS syntax.")
      ,(public-name new-name))))
 
 (defun expand-import-set (import-set get-exports
-                          &optional (package *package*))
+                          &key (package *package*))
+  "Expand IMPORT-SET, an R6RS-style import set, into a list of imports.
+Imports are aliased to ensure that they are accessible in the current
+package (or PACKAGE, if specified.)"
   (unless (functionp get-exports)
     (setf get-exports (constantly get-exports)))
-  (fbindrec (get-exports
+  (fbindrec ((get-exports
+              (once
+               (lambda ()
+                 (let ((exports (funcall get-exports)))
+                   ;; Strip reserved names (default, main, etc.).
+                   (remove (find-package :vernacular/symbols)
+                           exports
+                           :key (compose #'symbol-package #'public-name))))))
+             (local-name
+              (lambda (export)
+                (intern (string (public-name export)) package)))
              (rec
               (lambda (import-set)
                 (match import-set
@@ -46,16 +59,34 @@ Influenced by, but not identical with, the R6RS syntax.")
                    (mappend #'rec import-sets))
                   (:all
                    (loop for export in (get-exports)
-                         for sym = (intern (string export) package)
+                         for sym = (local-name export)
                          collect `(,export :as ,sym)))
                   (:all-as-functions
                    (loop for export in (get-exports)
-                         for sym = (intern (string export) package)
-                         collect `(#',export :as #',sym)))
+                         for sym = (local-name export)
+                         collect `(,(public-side export) :as #',sym)))
                   (:all-as-setters
                    (loop for export in (get-exports)
-                         for sym = (intern (string export) package)
-                         collect `(#'(setf ,export) :as #'(setf ,sym))))
+                         for sym = (local-name export)
+                         collect `(,(public-side export) :as #'(setf ,sym))))
+                  (:all-setters
+                   (loop for export in (get-exports)
+                         when (eql (public-ns export) 'setf)
+                           collect `(,(public-side export) :as #'(setf ,(local-name export)))))
+                  (:all-functions
+                   (loop for export in (get-exports)
+                         when (eql (public-ns export) 'function)
+                           collect `(,(public-side export) :as #',(local-name export))))
+                  (:all-functions-plus-setters
+                   (let* ((functions (keep 'function (get-exports) :key #'public-ns))
+                          (setters (keep 'setf (get-exports) :key #'public-ns))
+                          (function-setters
+                            (filter (lambda (setter)
+                                      (find (public-name setter)
+                                            functions
+                                            :key #'public-name))
+                                    setters)))
+                     (rec (append functions function-setters))))
                   ((list* :only import-set ids)
                    (only (rec import-set) ids))
                   ((list* :except import-set ids)
@@ -74,11 +105,14 @@ Influenced by, but not identical with, the R6RS syntax.")
                   ;; binding isn't removed.
                   ((list* :alias import-set renames)
                    (alias (rec import-set) renames))
-                  ((or (type symbol)
-                       (list _ :as _)
-                       (function-spec _ _)
-                       (ns _ _))
-                   (list import-set))
+                  ((and sym (type symbol))
+                   (list `(,sym :as ,(local-name sym))))
+                  ((function-spec ns symbol)
+                   (list `((function (,ns ,symbol)) :as (function (,ns ,(local-name symbol))))))
+                  ((ns ns symbol)
+                   (list `((,ns ,symbol) :as (,ns ,(local-name symbol)))))
+                  ;; Leave explicit aliases unchanged.
+                  ((and export (list _ :as _)) (list export))
                   ((type list)
                    (mappend #'rec import-set))
                   (otherwise

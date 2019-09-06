@@ -101,7 +101,19 @@ If MODULE does not use namespaces, this is the same as MODULE-REF.")
   (:documentation "A list of names exported by MODULE.")
   (:method (module)
     (error 'not-a-module
-           :module module)))
+           :module module))
+  (:method ((m package))
+    (collecting
+      (do-external-symbols (s m)
+        (when (fboundp s)
+          (collect
+              (if (macro-function s)
+                  `(macro-function ,s)
+                  `(function ,s))))
+        (when (fboundp `(setf ,s))
+          (collect `#'(setf ,s)))
+        (when (boundp s)
+          (collect s))))))
 
 (defgeneric module-static-exports (lang source)
   (:documentation "Get static exports from LANG and SOURCE.

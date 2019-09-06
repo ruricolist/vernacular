@@ -39,9 +39,9 @@
 (in-suite regressions)
 
 (test pattern-identity
-      (is (eql :equal
-               (fset:compare (compiled-module-target "tests/no-lang/no-lang.lsp")
-                             (compiled-module-target "tests/no-lang/no-lang.lsp")))))
+  (is (eql :equal
+           (fset:compare (compiled-module-target "tests/no-lang/no-lang.lsp")
+                         (compiled-module-target "tests/no-lang/no-lang.lsp")))))
 
 (in-suite vernacular)
 
@@ -120,8 +120,7 @@
 
 (test (grid :compile-at :run-time)
   ;; Reproduces an example from the R7RS spec.
-  (with-imports* (main :from "tests/grid/main.lisp" :binding ((run
-                                                               :as #'run*)))
+  (with-imports* (main :from "tests/grid/main.lisp" :binding ((#'run :as #'run*)))
     (let* ((sep #\Page)
            (s (with-output-to-string (*standard-output*)
                 (run* sep))))
@@ -159,8 +158,9 @@
 
   (is (import-set=
        '(x)
-       (expand-import-set :all '(:x))))
+       (expand-import-set :all '(:x)))))
 
+(test all-as-functions
   (is (import-set=
        '(#'x)
        (expand-import-set :all-as-functions
@@ -321,6 +321,11 @@
                          (#'x #'a) (#'y #'b) (#'z #'c))
                        '(:x :y :z))))
 
+(test reserved
+  (is (null
+       (expand-import-set :all
+                          '(vernacular/symbols:default vernacular/symbols:main)))))
+
 
 ;;; Core Lisp.
 
@@ -404,6 +409,8 @@ hash lang of the included file is ignored."
 that does not specify its language, and that changing the language is
 sufficient to cause a module to be recompiled."
   (let* ((file "tests/no-lang/no-lang.lsp")
+         ;; This test doesn't work when forcing.
+         (overlord:*force* nil)
          (n1 (require-default :cl file))
          (n2 (require-default :cl file))
          (n3 (require-default :vernacular/tests.cl file))

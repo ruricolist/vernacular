@@ -207,20 +207,17 @@ actually exported by the module specified by LANG and SOURCE."
 
 (defun check-exports (source bindings exports)
   "Make sure the bindings are a subset of the exports."
-  (let ((bindings (nub (mapcar #'private-keyword bindings))))
-    (unless (loop for binding in bindings
-                  for name = (private-name binding)
-                  always (find name exports :key #'public-name
-                                            :test #'string=))
-      (error 'binding-export-mismatch
-             :source source
-             :bindings bindings
-             :exports exports))))
+  (unless (subsetp (mapcar #'private-name bindings)
+                   (mapcar #'public-name exports)
+                   :test #'string=)
+    (error 'binding-export-mismatch
+           :source source
+           :bindings bindings
+           :exports exports)))
 
 (defun check-static-bindings-1 (lang source bindings)
   (check-type lang keyword)
   (check-type source absolute-pathname)
-  ;; (check-type bindings (satisfies setp))
   (unless (setp bindings :test #'equal)
     (error* "Duplicated bindings in ~a" bindings))
   (receive (static-exports exports-statically-known?)
