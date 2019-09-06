@@ -109,7 +109,7 @@ Most languages will expand into `simple-module' forms.")
 
 (defmethod module-ref-ns ((sm simple-module) name (ns (eql 'macro-function)))
   (declare (ignore name))
-  (error 'no-modules-please))
+  (error 'no-macros-please))
 
 (defmethod module-ref-ns ((sm simple-module) name (ns (eql 'setf)))
   (module-ref sm (setter-name name)))
