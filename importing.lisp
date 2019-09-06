@@ -50,33 +50,21 @@
 (defun expand-binding-spec (spec lang source)
   (setf source (merge-pathnames source (base))
         lang (lang-name lang))
-  (flet ((get-static-exports ()
-           ;; This doesn't save any work. The static bindings are
-           ;; always computed every time we import from a module. But
-           ;; we still only want to compute them here if we absolutely
-           ;; have to. Why? For friendlier debugging. Doing the check
-           ;; here would prevent us from macroexpanding `import' at
-           ;; all if there was a problem with the imports, which is
-           ;; frustrating. Instead, we push the check down into the
-           ;; `check-static-bindings-now' macro.
-           (receive (exports exports?)
-               (module-static-exports lang source)
-             (if exports? exports
-                 (module-dynamic-exports lang source)))))
-    (match spec
-      ((eql :all)
-       (loop for export in (get-static-exports)
-             for sym = (intern (string export))
-             collect `(,export :as ,sym)))
-      ((eql :all-as-functions)
-       (loop for export in (get-static-exports)
-             for sym = (intern (string export))
-             collect `(#',export :as #',sym)))
-      ((list* :import-set import-sets)
-       (mappend (op (expand-import-set _ #'get-static-exports))
-                import-sets))
-      ((type list)
-       spec))))
+  (expand-import-set
+   spec
+   (lambda ()
+     ;; This doesn't save any work. The static bindings are
+     ;; always computed every time we import from a module. But
+     ;; we still only want to compute them here if we absolutely
+     ;; have to. Why? For friendlier debugging. Doing the check
+     ;; here would prevent us from macroexpanding `import' at
+     ;; all if there was a problem with the imports, which is
+     ;; frustrating. Instead, we push the check down into the
+     ;; `check-static-bindings-now' macro.
+     (receive (exports exports?)
+         (module-static-exports lang source)
+       (if exports? exports
+           (module-dynamic-exports lang source))))))
 
 (defmacro function-wrapper (fn)
   "Global definition for possible shadowing."

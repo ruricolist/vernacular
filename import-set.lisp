@@ -9,6 +9,24 @@ Influenced by, but not identical with, the R6RS syntax.")
    :import-set=))
 (in-package :vernacular/import-set)
 
+(defcondition import-set-condition ()
+  ())
+
+(defcondition import-set-error (import-set-condition simple-error)
+  ((import-set :initarg :import-set)))
+
+(defcondition invalid-import-set (import-set-error)
+  ()
+  (:report (lambda (c s)
+             (with-slots (import-set) c
+               (format s "Invalid import set:~%~s" import-set)))))
+
+(defcondition missing-id (import-set-error)
+  ((id :initarg :id))
+  (:report (lambda (c s)
+             (with-slots (id import-set) c
+               (format s "Missing id ~s in import set:~%~s" id import-set)))))
+
 (defun rename-import (import new-name)
   `(,(private-side import)
     :as
@@ -22,7 +40,10 @@ Influenced by, but not identical with, the R6RS syntax.")
   (fbindrec (get-exports
              (rec
               (lambda (import-set)
-                (ematch import-set
+                (match import-set
+                  ;; Compat.
+                  ((list* :import-set import-sets)
+                   (mappend #'rec import-sets))
                   (:all
                    (loop for export in (get-exports)
                          for sym = (intern (string export) package)
@@ -52,14 +73,26 @@ Influenced by, but not identical with, the R6RS syntax.")
                   ;; Alias is just like rename, except that the old
                   ;; binding isn't removed.
                   ((list* :alias import-set renames)
-                   (alias (rec import-set) renames))))))
+                   (alias (rec import-set) renames))
+                  ((or (type symbol)
+                       (list _ :as _)
+                       (function-spec _ _)
+                       (ns _ _))
+                   (list import-set))
+                  ((type list)
+                   (mappend #'rec import-set))
+                  (otherwise
+                   (error 'invalid-import-set
+                          :import-set import-set))))))
     (nub (rec import-set))))
 
 (defun only (import-set ids)
   (reduce (lambda (out id)
             (if-let (import (find-id id import-set))
               (cons import out)
-              (missing-id id import-set)))
+              (error 'missing-id
+                     :id id
+                     :import-set import-set)))
           ids
           :initial-value nil))
 
@@ -67,7 +100,9 @@ Influenced by, but not identical with, the R6RS syntax.")
   (reduce (lambda (import-set id)
             (if-let (import (find-id id import-set))
               (remove import import-set)
-              (missing-id id import-set)))
+              (error 'missing-id
+                     :id id
+                     :import-set import-set)))
           ids
           :initial-value import-set))
 
@@ -85,7 +120,9 @@ Influenced by, but not identical with, the R6RS syntax.")
                       (if remove?
                           (remove import import-set)
                           import-set))
-                (missing-id old-name import-set))))
+                (error 'missing-id
+                       :id old-name
+                       :import-set import-set))))
           renames
           :initial-value import-set))
 
@@ -110,17 +147,6 @@ Influenced by, but not identical with, the R6RS syntax.")
   (fbind (frob)
     `(,(public-ns spec)
       ,(frob (public-name spec)))))
-
-(defcondition import-set-condition ()
-  ())
-
-(defcondition import-set-error (import-set-condition simple-error)
-  ())
-
-(defun missing-id (id import-set)
-  (error 'import-set-error
-         :format-control "Missing id ~a in import set ~s"
-         :format-arguments (list id import-set)))
 
 (defun find-id (id imports)
   (find (public-side id)
