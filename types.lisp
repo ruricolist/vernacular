@@ -105,7 +105,7 @@
     (nth-value 1 (ns+name (public-side clause)))))
 
 (defun public-ns (clause)
-  (assure symbol
+  (assure ns
     (nth-value 0 (ns+name (public-side clause)))))
 
 (defun private-name (spec)
@@ -113,5 +113,5 @@
     (nth-value 1 (ns+name (private-side spec)))))
 
 (defun private-ns (spec)
-  (assure symbol
+  (assure ns
     (nth-value 0 (ns+name (private-side spec)))))
