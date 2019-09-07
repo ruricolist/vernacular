@@ -42,6 +42,12 @@ Most languages will expand into `simple-module' forms.")
                (format s "~s not exported by module ~a."
                        name module)))))
 
+(defun not-exported (module name ns)
+  (error 'not-exported
+         :module module
+         :name name
+         :ns ns))
+
 (defun read-module (source stream)
   (declare (ignore source))
   `(module-progn
@@ -106,12 +112,6 @@ Most languages will expand into `simple-module' forms.")
       :exports ',export-keys
       :exports-table (mlet ,exports
                        ,@body))))
-
-(defun not-exported (module name ns)
-  (error 'not-exported
-         :module module
-         :name name
-         :ns ns))
 
 (defmacro mlet (exports &body body)
   (setf exports (nub exports))
