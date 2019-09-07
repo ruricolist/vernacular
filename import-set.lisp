@@ -57,27 +57,38 @@ package (or PACKAGE, if specified.)"
                   ;; Compat.
                   ((list* :import-set import-sets)
                    (mappend #'rec import-sets))
+                  ;; Coerce everything to a variable
                   (:all
                    (loop for export in (get-exports)
                          for sym = (local-name export)
                          collect `(,export :as ,sym)))
+                  ;; Coerce everything to a function.
                   (:all-as-functions
                    (loop for export in (get-exports)
                          for sym = (local-name export)
                          collect `(,(public-side export) :as #',sym)))
                   (:all-as-setters
+                   ;; Coerce everything to a setf function.
                    (loop for export in (get-exports)
                          for sym = (local-name export)
                          collect `(,(public-side export) :as #'(setf ,sym))))
+                  ;; Just marked variables.
+                  (:all-vars
+                   (loop for export in (get-exports)
+                         when (eql (public-ns export) 'nil)
+                           collect `(,(public-side export) :as ,(local-name export))))
+                  ;; Just marked setf functions.
                   (:all-setters
                    (loop for export in (get-exports)
                          when (eql (public-ns export) 'setf)
                            collect `(,(public-side export) :as #'(setf ,(local-name export)))))
+                  ;; Just marked functions.
                   (:all-functions
                    (loop for export in (get-exports)
                          when (eql (public-ns export) 'function)
                            collect `(,(public-side export) :as #',(local-name export))))
-                  (:all-functions-plus-setters
+                  ;; All functions, plus any setf functions with the same names.
+                  (:all-functions*
                    (let* ((functions (keep 'function (get-exports) :key #'public-ns))
                           (setters (keep 'setf (get-exports) :key #'public-ns))
                           (function-setters
@@ -87,24 +98,29 @@ package (or PACKAGE, if specified.)"
                                             :key #'public-name))
                                     setters)))
                      (rec (append functions function-setters))))
+                  ;; Remove everything but IDs from IMPORT-SET.
                   ((list* :only import-set ids)
                    (only (rec import-set) ids))
+                  ;; Remove IDs from IMPORT-SET.
                   ((list* :except import-set ids)
                    (except (rec import-set) ids))
                   ;; Renames are a list of (old-name new-name).
                   ((list* :rename import-set renames)
                    (rename (rec import-set) renames))
+                  ;; Add PREFIX to every local name in IMPORT-SET.
                   ((list :prefix import-set prefix)
                    (prefix (rec import-set) prefix))
                   ;; Same thing as :prefix.
                   ((list :add-prefix import-set prefix)
                    (rec `(:prefix ,import-set ,prefix)))
+                  ;; Remove PREFIX from every local name in IMPORT-SET.
                   ((list :drop-prefix import-set prefix)
                    (drop-prefix (rec import-set) prefix))
                   ;; Alias is just like rename, except that the old
                   ;; binding isn't removed.
                   ((list* :alias import-set renames)
                    (alias (rec import-set) renames))
+                  ;; Imports per se.
                   ((and sym (type symbol))
                    (list `(,sym :as ,(local-name sym))))
                   ((function-spec ns symbol)
@@ -113,6 +129,7 @@ package (or PACKAGE, if specified.)"
                    (list `((,ns ,symbol) :as (,ns ,(local-name symbol)))))
                   ;; Leave explicit aliases unchanged.
                   ((and export (list _ :as _)) (list export))
+                  ;; Descend into lists.
                   ((type list)
                    (mappend #'rec import-set))
                   (otherwise
