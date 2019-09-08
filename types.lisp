@@ -95,7 +95,7 @@
     ((ns nil name) name)
     ;; The private side should be something that can be evaluated.
     ((ns 'setf name)
-     `#'(function (setf ,name)))
+     `(function (setf ,name)))
     ((ns _ _) clause)
     ((list private :as _)
      (private-side private))))
