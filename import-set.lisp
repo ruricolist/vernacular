@@ -82,13 +82,8 @@ package (or PACKAGE, if specified.)"
                    (loop for export in (get-exports)
                          when (eql (public-ns export) 'setf)
                            collect `(,(public-side export) :as #'(setf ,(local-name export)))))
-                  ;; Just marked functions.
-                  (:all-functions
-                   (loop for export in (get-exports)
-                         when (eql (public-ns export) 'function)
-                           collect `(,(public-side export) :as #',(local-name export))))
                   ;; All functions, plus any setf functions with the same names.
-                  (:all-functions*
+                  (:all-functions
                    (let* ((functions (keep 'function (get-exports) :key #'public-ns))
                           (setters (keep 'setf (get-exports) :key #'public-ns))
                           (function-setters
