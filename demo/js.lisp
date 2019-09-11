@@ -35,16 +35,16 @@
   (lret ((lib (empty-lib "Vernacular")))
     (add-to-lib lib
                 (.func "require" (spec)
-                       (lret* ((canonical (ensure-absolute (uiop:parse-unix-namestring spec)))
-                               (module (dynamic-require-as :vernacular/demo/js canonical))
-                               (obj (js-module-obj module))))))))
+                       (vernacular:dynamic-require-default
+                        :vernacular/demo/js
+                        (ensure-absolute (uiop:parse-unix-namestring spec)))))))
 
 (defstruct-read-only
     (js-module
      (:constructor make-js-module
          (obj &aux (exports-table (module-object-exports-table obj))
                    (exports-list (hash-table-keys exports-table)))))
-  "Wrap as JS module for import-export."
+  "Wrap a JS module for import-export."
   (obj :type js-obj)
   (exports-table :type hash-table)
   (exports-list :type list))
@@ -54,6 +54,13 @@
 
 (defmethod module-ref ((m js-module) key)
   (gethash key (js-module-exports-table m)))
+
+;;; Keys are usually keywords, but non-keywords are used for special
+;;; purposes. The symbol `vernacular:default' gets the module's
+;;; default export, if there is one.
+
+(defmethod module-ref ((m js-module) (key (eql 'vernacular:default)))
+  (js-module-obj m))
 
 (defun object-keys (object)
   "List the keys of a JavaScript object."
@@ -80,6 +87,8 @@
    :test 'eq))
 
 (defun wrap-as-module (ast)
+  "Wrap AST as a function taking a single argument, named exports, and
+returning it."
   `(:function nil ("exports") (,@(second ast) (:return (:name "exports")))))
 
 (defun read-module (source stream)
