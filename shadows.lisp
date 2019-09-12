@@ -9,6 +9,7 @@
    #:defmacro
    #:defconstant
    #:define-symbol-macro
+   #:deftype
    #:def #:define-values #:defconst     ;Serapeum.
    #:defsubst #:defalias
    #:define-constant                    ;Alexandria.
@@ -44,7 +45,13 @@
 
    #:import
 
-   #:make)
+   #:make
+
+   #:t #:otherwise
+   ;; In order to shadow T, we also need to shadow these.
+   #:cond
+   #:case #:ecase #:ccase
+   #:typecase #:etypecase #:ctypecase)
   (:export
    :def :define-values
    :defalias :defsubst
@@ -56,6 +63,9 @@
   so they can be rebound."))
 
 (in-package :vernacular/shadows)
+
+#-ccl
+(setf (find-class 't) (find-class 'cl:t))
 
 (cl:defmacro defmacro (name args &body body)
   `(cl:defmacro ,name ,args ,@body))
@@ -95,11 +105,56 @@
 (defmacro defconst (var expr) `(serapeum:defconst ,var ,expr))
 (defmacro defconstant (var expr) `(cl:defconstant ,var ,expr))
 (defmacro define-symbol-macro (var form) `(cl:define-symbol-macro ,var ,form))
+(defmacro deftype (name lambda-list &body body) `(cl:deftype ,name ,lambda-list ,@body))
 
 (defmacro define-constant (name init &key (test ''eql) documentation)
   `(alexandria:define-constant ,name ,init
      :test ,test
      :documentation ,documentation))
+
+;; Shadowing `t' isn't quite as easy as it looks. If you make it a
+;; constant -- either as a true constant, or as a symbol macro -- SBCL
+;; won't let you use it as a slot name. But if it has to be evaluated,
+;; it confuses SBCL's type inference when it comes to `cond' and the like. We
+;; compromise by shadowing `cond' as well.
+
+(define-symbol-macro t cl:t)
+
+#+(or sbcl cmucl)
+(eval-always
+  (def t cl:t))
+
+(serapeum:eval-always
+  ;; CCL objects to redefining.
+  (unless (alexandria:type= t 'cl:t)
+    (deftype t () 'cl:t)))
+
+(setf (find-class 't) (find-class 'cl:t))
+
+(defun handle-default-keys (clauses)
+  (loop for clause in clauses
+        collect (cons
+                 (cl:case (car clause)
+                   ((t) 'cl:t)
+                   ((otherwise) 'cl:otherwise)
+                   (cl:t (car clause)))
+                 (cdr clause))))
+
+(defmacro cond (&rest clauses) `(cl:cond ,@(handle-default-keys clauses)))
+
+(defmacro shadow-case (name)
+  (let ((cl-name (find-symbol (string name) :cl)))
+    `(defmacro ,name (keyform &rest clauses)
+       (list* ',cl-name keyform (handle-default-keys clauses)))))
+
+(defmacro shadow-cases (&body names)
+  `(progn
+     ,@(loop for name in names
+             collect `(shadow-case ,name))))
+
+(shadow-cases
+  case ecase ccase
+  typecase etypecase ctypecase)
 
 (deftype cons (&optional x y)
   `(cl:cons ,x ,y))
