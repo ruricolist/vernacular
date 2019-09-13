@@ -57,7 +57,7 @@
    :defalias :defsubst
    :defconst :define-constant
    :make)
-  (:import-from :serapeum :batches :mapply)
+  (:import-from :serapeum :batches :mapply :eval-always)
   (:use-reexport :cl)
   (:documentation "Just like CL, except that some forms are shadowed
   so they can be rebound."))
@@ -124,7 +124,7 @@
 (eval-always
   (def t cl:t))
 
-(serapeum:eval-always
+(eval-always
   ;; CCL objects to redefining.
   (unless (alexandria:type= t 'cl:t)
     (deftype t () 'cl:t)))
