@@ -53,18 +53,6 @@
           (system-name (asdf-system-name system)))
       (fmt "~(~a~).~a" system-name namestring))))
 
-(defun make-suffix (suffix)
-  (~>> suffix
-       bytes->base64
-       (string-right-trim "=")))
-
-(defun bytes->base64 (bytes)
-  (with-output-to-string (s)
-    (encode-base64-bytes bytes s)))
-
-(defun byte-array->string (byte-array &optional (base 16))
-  (mapconcat (op (fmt "~(~vr~)" base _)) byte-array ""))
-
 
 
 (defun reset-package (package)
