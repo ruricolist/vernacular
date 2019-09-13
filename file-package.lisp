@@ -12,10 +12,13 @@
     :asdf-system-name
     :asdf-system-base)
   (:import-from :s-base64 :encode-base64-bytes)
+  (:import-from #:uiop
+    #:os-windows-p)
   (:export
    :find-file-package
    :intern-file-package
-   :reset-file-package))
+   :reset-file-package
+   :abbreviate-file-name))
 
 (in-package :vernacular/file-package)
 
@@ -52,6 +55,37 @@
     (let ((namestring (enough-namestring file base))
           (system-name (asdf-system-name system)))
       (fmt "~(~a~).~a" system-name namestring))))
+
+(def home-parent
+  (pathname-parent-directory-pathname (user-homedir-pathname)))
+
+(defconst tmp-mnt "/tmp_mnt")
+
+(defun enough-unix-namestring (subpath path)
+  (unix-namestring (enough-pathname subpath path)))
+
+(defun abbreviate-file-name (path)
+  (setf path (pathname path))
+  (assert (file-pathname-p path))
+  ;; Normalize the device.
+  (when (os-windows-p)
+    (trivia:match path
+      ((pathname :device (and device (type string)))
+       (setf path
+             (make-pathname
+              :device (string-upcase device)
+              :defaults path)))))
+  (let ((home (user-homedir-pathname)))
+    (assure string
+      (if (subpathp path home)
+          (string+ "~/" (enough-unix-namestring path home))
+          (let ((home-parent (pathname-parent-directory-pathname home)))
+            (if (subpathp path home-parent)
+                (string+ "~" (enough-unix-namestring path home-parent))
+                (let ((ns (unix-namestring path)))
+                  (if (string^= tmp-mnt ns)
+                      (drop (length tmp-mnt) ns)
+                      ns))))))))
 
 
 

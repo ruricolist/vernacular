@@ -9,6 +9,8 @@
     :with-import-default :require-default)
   (:import-from :vernacular/file-local
     :file-emacs-mode)
+  (:import-from :vernacular/file-package
+    :abbreviate-file-name)
   ;; Languages.
   (:import-from :vernacular/demo/js)
   ;; (:import-from :vernacular/lang/sweet-exp)
@@ -42,6 +44,26 @@
   (is (eql :equal
            (fset:compare (compiled-module-target "tests/no-lang/no-lang.lsp")
                          (compiled-module-target "tests/no-lang/no-lang.lsp")))))
+
+(in-suite vernacular)
+
+;;; Abbreviating file names.
+
+(def-suite abbreviate-file-name :in vernacular)
+(in-suite abbreviate-file-name)
+
+(test abbreviate-file-name
+  (let ((home (user-homedir-pathname)))
+    (let ((file
+            (make-pathname :name "foo"
+                           :defaults home)))
+      (is (equal "~/foo" (abbreviate-file-name file))))
+    (let ((file (path-join
+                 (uiop:pathname-parent-directory-pathname home)
+                 "other/foo")))
+      (is (equal "~other/foo" (abbreviate-file-name file))))
+    (is (equal "/usr/man"
+               (abbreviate-file-name "/tmp_mnt/usr/man")))))
 
 (in-suite vernacular)
 
