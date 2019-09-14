@@ -5,8 +5,7 @@
     :base
     :resolve-file)
   (:import-from :vernacular/lang
-    :expand-module
-    :expand-module*)
+    :expand-module)
   (:import-from :vernacular/specials
     :*language*)
   (:export
@@ -21,7 +20,7 @@ current file (without a `module-progn').
 
 Adds a build dependency on PATH."
   (let* ((path (resolve-file path))
-         (module-form (expand-module *language* path)))
+         (module-form (expand-module path :lang *language*)))
     (depends-on path)
     ;; Drop the module-progn.
     (cons 'progn (rest module-form))))
@@ -33,6 +32,6 @@ current file.
 
 Adds a build dependency on PATH."
   (let* ((path (resolve-file path))
-         (module-form (expand-module* path)))
+         (module-form (expand-module path)))
     (depends-on path)
     (cons 'progn (rest module-form))))

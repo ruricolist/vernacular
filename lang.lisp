@@ -41,7 +41,7 @@
   (:export
    :lang :lang-name :hash-lang-name
    :load-module
-   :expand-module :expand-module*
+   :expand-module
    :package-expander :package-reader :module-progn-in
    :with-meta-language
    :load-same-name-system
@@ -533,7 +533,7 @@ providing a restart to compile it if necessary."
       (depends-on (language-oracle source))
       ;; Let the language tell you what else to depend on.
       (lang-deps lang source)
-      (compile-to-file (expand-module lang source)
+      (compile-to-file (expand-module source :lang lang)
                        (ensure-directories-exist output)
                        :top-level (package-compile-top-level? lang)
                        :source *source*)
@@ -707,8 +707,9 @@ name in the current package."
 This should be a superset of the variables bound by CL during calls to
 `cl:load'.")
 
-(defun expand-module (package source
-                      &key ((:in base))
+(defun expand-module (source
+                      &key ((:lang package) (source-lang source))
+                           ((:in base))
                       &aux (file-locals *file-local-variables*))
   "Parse SOURCE into a module form suitable for compilation using the
 reader and expander exported by PACKAGE."
@@ -736,16 +737,12 @@ reader and expander exported by PACKAGE."
                    (funcall reader source in))))
           module-form)))))
 
-(defun expand-module* (source)
-  "Like `expand-module', inferring the language from SOURCE."
-  (expand-module (source-lang source) source))
-
 (defun expand-module-for-emacs (lang source)
   "Like `expand-module', but first resolving LANG.
 Intended to be called from Emacs to view the current module's
 expansion."
   (setf lang (resolve-lang lang))
-  (values (expand-module lang source)))
+  (expand-module source :lang lang))
 
 
 ;;; #lang syntax.
