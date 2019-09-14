@@ -22,9 +22,9 @@
   ())
 
 (defun vernacular-error (format-control &rest format-arguments)
-  (error 'vernacular-error
-         :format-control format-control
-         :format-arguments format-arguments))
+  (make-condition 'vernacular-error
+                  :format-control format-control
+                  :format-arguments format-arguments))
 
 (define-compiler-macro vernacular-error (&whole call
                                                 format-control &rest format-arguments)

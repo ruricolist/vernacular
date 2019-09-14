@@ -273,7 +273,7 @@ if it does not exist."
               (progn
                 (build path)
                 (truename* path))
-              (error "Cannot resolve pathname ~a" path))))
+              (error (vernacular-error "Cannot resolve pathname ~a" path)))))
   (mvlet* ((cell cell?
             (gethash path *module-cells*)))
     (if cell? (assure module-cell cell)
@@ -449,11 +449,11 @@ package is not overwritten."
     ;; is not a language)?
     (when-let (package (find-package pn))
       (when (package-use-list package)
-        (error* "Package already exists with a use list: ~a" package))
+        (error (vernacular-error "Package already exists with a use list: ~a" package)))
       (unless (set-equal (package-exports package)
                          (loader-language-exports)
                          :test #'string=)
-        (error* "Package already exists with wrong exports: ~a" package)))
+        (error (vernacular-error "Package already exists with wrong exports: ~a" package))))
     `(progn
        (defpackage ,pn
          (:use)
@@ -470,8 +470,8 @@ package."
   (declare (ignore keys))
   (let ((p (find-package package-name)))
     (unless (packagep p)
-      (error "This macro cannot expand until package ~a exists."
-             package-name))
+      (error (vernacular-error "This macro cannot expand until package ~a exists."
+                               package-name)))
     (let ((syms (mapcar (op (find-symbol (string _) p))
                         (loader-language-exports)))
           (keyword (make-keyword package-name)))
@@ -526,7 +526,7 @@ providing a restart to compile it if necessary."
            (*package* (user-package (resolve-package lang)))
            (*base* (pathname-directory-pathname *source*)))
       (unless (file-exists-p source)
-        (error* "File ~a does not exist" source))
+        (error (vernacular-error "File ~a does not exist" source)))
       ;; Depend on the source file.
       (depends-on source)
       ;; Depend on the computed language.
@@ -640,7 +640,7 @@ compiled at the top level?"
   "Resolve the reader exported by PACKAGE."
   (flet ((error* (&rest args)
            (if errorp
-               (apply #'error* args)
+               (error (apply #'vernacular-error args))
                (return-from package-reader nil))))
     (assure (or symbol null)
       (let ((p (resolve-package package)))
@@ -674,7 +674,7 @@ name in the current package."
   "Resolve the module expander exported by PACKAGE."
   (flet ((error* (&rest args)
            (if errorp
-               (apply #'error* args)
+               (error (apply #'vernacular-error args))
                (return-from package-expander nil))))
     (assure (or symbol null)
       (let ((p (resolve-package package)))

@@ -19,7 +19,6 @@
   (:shadowing-import-from :trivia
     :defpattern)
   (:import-from :overlord/types
-    :error*
     :absolute-pathname)
   (:import-from :overlord/freeze
     :*before-hard-freeze-hook*)
@@ -37,6 +36,32 @@
    :with-imports
    :with-import-default))
 (in-package :vernacular/importing)
+
+(defcondition importing-error (vernacular-error)
+  ())
+
+(defcondition duplicated-bindings (importing-error)
+  ((bindings :initarg :bindings))
+  (:report (lambda (c s)
+             (with-slots (bindings) c
+               (format s "Duplicate bindings in ~a" bindings)))))
+
+(defcondition binding-export-mismatch (importing-error)
+  ((source :initarg :source)
+   (bindings :initarg :bindings :type list)
+   (exports :initarg :exports :type list))
+  (:report (lambda (c s)
+             (with-slots (bindings exports source) c
+               (format s "Requested bindings do not match exports.~%Source: ~a~%Bindings: ~s~%Exports: ~s"
+                       source bindings exports)))))
+
+(defcondition not-enough-info (importing-error)
+  ((lang :initarg :lang)
+   (source :initarg :source))
+  (:report (lambda (c s)
+             (with-slots (lang source) c
+               (format s "Not enough information: you must specify either a language or a source.~%Language:~a~%Source:~a"
+                       lang source)))))
 
 ;;; Importing.
 
@@ -104,18 +129,18 @@
        (let ((source (resolve-source source)))
          (values (resolve-lang
                   (or (guess-lang source)
-                      (error* "Failed to guess source, and no language is specified.")))
+                      (error 'not-enough-info :lang lang :source source)))
                  source)))
       ;; We have the language, but not the source.
       ((and lang (no source))
        (values (resolve-lang lang)
                (resolve-source
                 (or (guess-source lang module)
-                    (error* "Failed to guess source, and no source is specified.")
+                    (error 'not-enough-info :lang lang :source source)
                     (required-argument :from)))))
       ;; We have neither the language nor the source.
       ((nor lang source)
-       (error* "We need a source file or a language.")))))
+       (error 'not-enough-info :lang lang :source source)))))
 
 (defun resolve-import-spec
     (&key lang source bindings module (base (base)) env prefix)
@@ -183,15 +208,6 @@
 Can't use eval-when because it has to work for local bindings."
   (check-static-bindings lang source bindings))
 
-(defcondition binding-export-mismatch (vernacular-error)
-  ((source :initarg :source)
-   (bindings :initarg :bindings :type list)
-   (exports :initarg :exports :type list))
-  (:report (lambda (c s)
-             (with-slots (bindings exports source) c
-               (format s "Requested bindings do not match exports.~%Source: ~a~%Bindings: ~s~%Exports: ~s"
-                       source bindings exports)))))
-
 (defun check-static-bindings (lang source bindings)
   "Check that BINDINGS is free of duplicates. Also, using
 `module-static-exports', check that all of the symbols being bound are
@@ -219,7 +235,7 @@ actually exported by the module specified by LANG and SOURCE."
   (check-type lang keyword)
   (check-type source absolute-pathname)
   (unless (setp bindings :test #'equal)
-    (error* "Duplicated bindings in ~a" bindings))
+    (error 'duplicated-bindings :bindings bindings))
   (receive (static-exports exports-statically-known?)
       (module-static-exports lang source)
     (if exports-statically-known?

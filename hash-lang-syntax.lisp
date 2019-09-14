@@ -1,7 +1,7 @@
 (defpackage :vernacular/hash-lang-syntax
   (:use :cl :alexandria :serapeum :vernacular/types)
   (:documentation "Parse the #lang line in a module file.")
-  (:import-from :overlord/types :error*)
+  (:import-from :vernacular/types :vernacular-error)
   (:import-from :uiop :file-exists-p)
   (:export
    :file-hash-lang
@@ -11,6 +11,12 @@
    :valid-lang-name?))
 
 (in-package :vernacular/hash-lang-syntax)
+
+(defcondition invalid-lang-name (vernacular-error)
+  ((token :initarg :token))
+  (:report (lambda (c s)
+             (with-slots (token) c
+               (format s "Invalid language name: ~a" token)))))
 
 (defun file-hash-lang (file &key (external-format :utf-8))
   "Return two values: the name of the lang (as a string) and the position to start reading from."
@@ -44,7 +50,7 @@
       (cond ((valid-lang-name? token)
              token)
             (errorp
-             (error* "Invalid language name: ~a" token))
+             (error 'invalid-lang-name :token token))
             (t nil)))))
 
 (defun stream-take-while (pred stream)
