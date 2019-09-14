@@ -5,13 +5,10 @@
     :uiop/pathname
     :overlord/types)
   (:import-from :vernacular/specials :*language*)
-  (:import-from :overlord/base :current-system)
-  (:import-from :overlord/digest :digest-string)
   (:import-from :overlord/asdf
     :asdf-system-name-keyword
     :asdf-system-name
     :asdf-system-base)
-  (:import-from :s-base64 :encode-base64-bytes)
   (:import-from #:uiop
     #:os-windows-p)
   (:export
@@ -49,12 +46,7 @@
     (make-package name :use use-list)))
 
 (defun file-package-name (file)
-  (let* ((system (current-system))
-         (base (asdf-system-base system)))
-    (assert (subpathp file base))
-    (let ((namestring (enough-namestring file base))
-          (system-name (asdf-system-name system)))
-      (fmt "~(~a~).~a" system-name namestring))))
+  (abbreviate-file-name file))
 
 (def home-parent
   (pathname-parent-directory-pathname (user-homedir-pathname)))
