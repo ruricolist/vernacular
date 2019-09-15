@@ -73,7 +73,8 @@
    :guess-lang
    :compiled-module-target
    :module
-   :loaded-modules-alist))
+   :loaded-modules-alist
+   :vernacular-version))
 (in-package :vernacular/lang)
 
 
