@@ -8,42 +8,52 @@ Vernacular builds on [Overlord][] and is heavily inspired by [Racket][].
 
 Here are some example languages:
 
-1. [Bosom Serpent][]. Shows how to wrap a foreign runtime (Python,
-   using [burgled-batteries][]) as an Vernacular module.
+1. [Bosom Serpent][]. Shows how to wrap a foreign runtime (Python, using [burgled-batteries][]) as an Vernacular module.
 
-2. [vernacular/demo/js](demo/js.lisp). A simple language built on
-   [CL-JavaScript][]. Shows how to convert a pre-existing CL language
-   implementation to work with Vernacular.
+2. [vernacular/demo/js](demo/js.lisp). A simple language built on [CL-JavaScript][]. Shows how to convert a pre-existing CL language implementation to work with Vernacular.
 
-3. [cl-yesql][]. Lisp port of Clojure’s [yesql][]: lets you write SQL
-   queries in separate SQL files, using special comments to guide
-   conversion into Lisp functions. Includes a non-trivial parser.
+3. [cl-yesql][]. Lisp port of Clojure’s [yesql][]: lets you write SQL queries in separate SQL files, using special comments to guide conversion into Lisp functions. Includes a non-trivial parser.
 
-4. [Core Lisp][]. A hygiene-compatible implementation of the Lisp
-   dialect [ISLISP][] (itself a conceptual subset of Common Lisp).
-   Shows how to use Vernacular to build “language towers.”
+4. [Core Lisp][]. A hygiene-compatible implementation of the Lisp dialect [ISLISP][] (itself a conceptual subset of Common Lisp). Shows how to use Vernacular to build “language towers.”
 
-# Why Vernacular?
+# Using a Vernacular language
 
-Vernacular languages have several important properties:
+Let’s use use CL-Yesql as an example.
 
-1. Languages are *first-class*. Modules live in their own files, just
-   like Lisp code, and are compiled into FASLs, just like Lisp code.
+In your system definition, add `cl-yesql/sqlite` as a dependency.
 
-2. Languages can use *any syntax*. Unlike embedded DSLs, which are
-   limited to reader macros, Vernacular lets you use any parser you
-   like – which means compatibility with existing tools, like editors.
+Create a file named `fact.sql` in your system, and add the following:
 
-3. Languages are *reusable*. Support for meta-languages allows
-   different languages to share the same parser or for the same
-   language to be written in more than one syntax.
+    #lang cl-yesql/sqlite
 
-4. Languages are *interoperable*. Lisp code can import modules written
-   in Vernacular languages, and modules written in Vernacular
-   languages can import other modules – in the same language, or in
-   other languages.
+    -- name: get-facts-about @column
+    select fact from fact where subject = $1
 
-# Specifying languages
+In a Lisp file in your system, add:
+
+    (vernacular:import facts
+      :from "fact.sql"
+      :binding :all-functions)
+
+You can then do:
+
+    (sqlite:with-open-database (db ":memory:")
+        (create-facts-table db)
+        (add-fact db "Lisp" "Lisp is a programmable programming language.")
+        (add-fact db "Lisp" "Lisp is fun")
+        (is (set-equal
+             (facts-about db "Lisp")
+             '("Lisp is a programmable programming language."
+               "Lisp is fun")
+             :test #'equal)))
+
+Two cavets. Vernacular needs to know what system your package belongs to. If your package has a different name from your system (why?), you may need to tell Vernacular what system it belong to. In the package, evaluate:
+
+    (overlord:set-package-system :my-system)
+
+Also, note that import paths are given relative to the base of the system, not the file with the import form. Whether you are importing from `all-in-one.lisp` at the base of your project, or  `deeply/nested/component/impl.lisp`, the path does not change.
+
+## Specifying languages
 
 The language of a file can be specified in three ways.
 
@@ -54,102 +64,135 @@ The preferred way is to use a special first line:
 
 This is called (following Racket) a *hash lang*. A hash lang takes precedence over all other ways of specifying a language.
 
-Sometimes, however, you will be re-using an existing syntax. This lets you employ existing tooling like editors, linters, etc. In this case we borrow Emacs’s syntax for specifying modes, using a special  in the first line:
+Sometimes, however, you will be re-using an existing syntax. This lets you employ existing tooling like editors, linters, etc. In this case we use Emacs’s syntax for specifying modes, using a special in the first line:
 
     # -*- mode: my-lang -*-
 
 (You can consult the [Emacs manual][] for the details of the syntax.)
 
-The advantage of this approach is that the sequence between `-*-`
-markers does not have to appear at the beginning of the file; it can
-be commented out using the appropriate comment syntax. (If the file
-starts with a shebang (`#!`), the mode can also be specified in the
-second line, but this is also true of hash langs.)
+The advantage of this approach is that the sequence between `-*-` markers does not have to appear at the beginning of the file; it can be commented out using the appropriate comment syntax. (If the file starts with a shebang (`#!`), the mode can also be specified in the second line, but this is also true of hash langs.)
 
-Lastly, the language of a module can be specified as part of the
-import syntax. This lets you use files as modules without having to
-edit them at all, which may be useful for shared files you cannot
-edit.
+Lastly, the language of a module can be specified as part of the import syntax. This lets you use files as modules without having to edit them at all, which may be useful for shared files you cannot edit.
 
-# Languages
+    (vernacular:import facts
+      :as :cl-yesql/sqlite
+      ...)
 
-In Vernacular, a language is just a package. The package exports a
-reader and an expander. The function bound to the symbol named
-`read-module` is the *package reader*. The macro bound to the symbol
-named `module-progn` is the *package expander*.
+## Advanced imports
 
-The important thing: when the package’s reader is called, that same
-package is also bound as the *current* package. It is then the
-responsibility of the reader to make sure any symbols it reads in, or
-inserts into the expansion, are interned in the correct package.
-(There is a shortcut for this, `vernacular:reintern`.)
+You can use `import-as-package` to import a Vernacular module as a Lisp package:
 
-(There is one exception to the rule of *language=package*. If another
-package exists, having the same name, but ending in `-user`, and this
-other package inherits from the original package, then this *user
-package* is the package that is made current while reading (and
-expanding). E.g. a file beginning with `#lang cl` would actually be
-read in using the `cl-user` package, not the `cl` package itself.)
+    (vernacular:import-as-package :facts
+      :from "sqlite.sql"
+      :binding :all-functions)
 
-Note that the reader is responsible for returning a single form, which
-is the module. That is, the form returned by the package reader should
-already be wrapped in the appropriate `module-progn`. The exported
-binding for `module-progn` is *only* looked up when the language is
-being used as the expander for a meta-language.
+This will bind `facts:add-fact` etc.
 
-(Meta-languages are for language authors who want to reuse an existing
-syntax.)
+(If your Lisp supports hierarchical packages, you might find `import-as-subpackage` more useful.)
 
-# Defining languages
+Vernacular supports local imports using the `with-imports` form:
 
-Any package can be used as a hash lang, as long as its name is limited
-to certain characters (`[a-zA-Z0-9/_+-]`). Of course this name can
-also be a nickname.
+    (vernacular:with-imports (facts
+                              :from "sqlite.sql"
+                              :binding :all-functions)
+      ...)
+
+Besides being local in extent, this supports all the same options as `vernacular:import`.
+
+The `binding` clause of an import form actually supports a DSL for specifying import sets, based on [R6RS][r6rs-imports].
+
+A list of names is just a list of imports:
+
+    (x y z) ; x, y, and z as variables
+
+Names can be aliased:
+
+    ((x :as eks) (y :as why) (z :as zed))
+
+You can import the same binding more than once under different aliases:
+
+    ((x :as x1) (x :as x2))
+
+Names can be namespaced:
+
+    ;; x as a variable, y as a function, z as a macro
+    (x #'y (macro-function z))
+
+What this does depends on whether the language uses namespaces. If it exports a function named `y`, that is what you get. If it doesn’t use namespaces, then you get the variable `y` in the function namespace.
+
+Namespaces and renaming can be combined:
+
+    ((y :as #'why) (#'z :as zed))
+
+Now the variable named `y` is being imported as a function named `why`, and the function named `z` is being imported as a variable named `zed`.
+
+There are shorthands for importing everything:
+
+    :all ; all the variables, as variables
+    :all-functions ; all the functions, as functions
+    :all-setters ; all the setf functions
+    :all-as-functions ; all the exports, as functions
+    :all-as-setters ; all the exports, as setters
+
+You can limit these using `:except`:
+
+    (:except :all x y) ; All variables except x and y.
+
+You can add a prefix to everything:
+
+    ; Import all functions, adding sql- as a prefix.
+    (:prefix :all-functions sql-)
+
+You can remove a prefix:
+
+    ; Import all functions, removing any get- prefix.
+    (:drop-prefix :all-functions get-)
+
+# Writing languages
+
+## Why Vernacular?
+
+Vernacular languages have several important properties:
+
+1. Languages are *first-class*. Modules live in their own files, just like Lisp code, and are compiled into FASLs, just like Lisp code.
+
+2. Languages can use *any syntax*. Unlike embedded DSLs, which are limited to reader macros, Vernacular lets you use any parser you like – which means compatibility with existing tools, like editors.
+
+3. Languages are *reusable*. Support for meta-languages allows different languages to share the same parser or for the same language to be written in more than one syntax.
+
+4. Languages are *interoperable*. Lisp code can import modules written in Vernacular languages, and modules written in Vernacular languages can import other modules – in the same language, or in other languages.
+
+## Languages
+
+In Vernacular, a language is just a package. The package exports a reader and an expander. The function bound to the symbol named `read-module` is the *package reader*. The macro bound to the symbol named `module-progn` is the *package expander*.
+
+The important thing: when the package’s reader is called, that same package is also bound as the *current* package. It is then the responsibility of the reader to make sure any symbols it reads in, or inserts into the expansion, are interned in the correct package. (There is a shortcut for this, `vernacular:reintern`.)
+
+(There is one exception to the rule of *language=package*. If another package exists, having the same name, but ending in `-user`, and this other package inherits from the original package, then this *user package* is the package that is made current while reading (and expanding). E.g. a file beginning with `#lang cl` would actually be read in using the `cl-user` package, not the `cl` package itself.)
+
+Note that the reader is responsible for returning a single form, which is the module. That is, the form returned by the package reader should already be wrapped in the appropriate `module-progn`. The exported binding for `module-progn` is *only* looked up when the language is being used as the expander for a meta-language.
+
+(Meta-languages are for language authors who want to reuse an existing syntax.)
+
+## Language packages
+
+Any package can be used as a language, but it can only be used as a hash lang if its name is limited to certain characters (`[a-zA-Z0-9/_+-]`). (Of course this name can also be a nickname.)
 
 (Note that package names are absolute, even on a Lisp that supports [package-local nicknames][].)
 
-It is recommended, although not required, that your language package
-inherit from `vernacular/cl` rather than from `cl`. The result is the
-same, except that `vernacular/cl` shadows Common Lisp’s binding and
-definition forms so they can be rebound by language implementations.
+It is recommended, although not required, that your language package inherit from `vernacular/cl` rather than from `cl`. The result is the same, except that `vernacular/cl` shadows Common Lisp’s binding and definition forms so they can be locally rebound by language implementations.
 
-The package must at least export a binding for one of `read-module`,
-for direct use, or `module-progn`, for use with a meta-language.
-Preferably, it would export both.
+The package must export a binding for both `read-module`, a function, and `module-progn`, a macro.
 
-If the syntax of your language makes it possible to determine exports
-statically, you should also define and export `static-exports`. If
-your language defines `static-exports`, then Vernacular can statically
-check the validity of import forms.
+### Static exports
 
-(This also has implications for phasing. If your language *doesn’t*
-provide a `static-exports` binding, then the only way Vernacular can
-expand a request to import *all* bindings from a module is by loading
-that module *at compile time* to get a list of its exports.)
+If the syntax of your language makes it possible to determine exports statically, you should also define and export `static-exports`. If your language defines `static-exports`, then Vernacular can statically check the validity of import forms.
 
-# Imports and exports
+(This also has implications for phasing. If your language *doesn’t* provide a `static-exports` binding, then the only way Vernacular can expand a request to import *all* bindings from a module is by loading that module *at compile time* to get a list of its exports.)
 
-What Vernacular imports and exports are not values, but bindings. Bindings
-are indirect (and immutable): they refer to the module, rather than to
-the value of the export. This allows for modules to be reloaded at any
-time. It is even possible to unload modules (using `dynamic-unrequire`).
+## Simple modules
 
-Note that exports in Vernacular, with one exception, form a single
-namespace. This is in order to keep the notation for imports simple.
-Importing from a language with multiple namespaces into a language
-with multiple namespaces would create a Cartesian product problem.
-
-The one exception is macros. A single namespace for run-time bindings
-and macros would not make sense in Vernacular where modules can be
-dynamically reloaded.
-
-Finally, Vernacular allows local imports: imports that only take effect
-within the body of a `with-imports` form.
-
-# Simple modules
-
-Most of the time, your language’s package expander will return a
-`simple-module` form.
+Most of the time, your language’s package expander will return a `simple-module` form.
 
     (vernacular:simple-module (#'moo)
       (defun make-moo (o)
@@ -158,41 +201,21 @@ Most of the time, your language’s package expander will return a
       (defun moo (&optional (o 2))
         (print (make-moo o))))
 
-This exports a single name, `moo`, bound to a function that says “Moo”
-with a varying amount of “oo”.
+This exports a single name, `moo`, bound to a function that says “Moo” with a varying amount of “oo”.
 
-What makes simple modules simple is that they cannot export macros. If
-you do want to export macros, you need something more complex (see
-below).
+You can define and use macros in a simple module (with `defmacro`), but you can’t export them, and they have to come first. These are limitations you can get around, but you’ll need something more complex (see below).
 
-The `simple-module` form builds on the support for internal
-definitions in [Serapeum][] (the `local` macro), and shares its
-limitations with regard to the precedence of macro definitions. Macro
-definitions must precede all function or variable definitions, and all
-expressions.
+## Module objects
 
-To be clear: you can define macros in a simple module (with `defmacro`), you just can’t export them.
+Vernacular’s module system is based on the generic functions `module-ref`, `module-ref-ns`, and `module-exports`.
 
-# Macro exports
+### Export names and packages
 
-Vernacular’s syntax for import and export supports macros.
+## Macro exports
 
-The ability to export macros from modules is not useful in itself. It
-only becomes useful in the presence of certain forms of macro hygiene.
-After experimenting with different ways to do this, I have concluded
-that the correct thing to do, if you want your language to be able to
-export macros, is to embed a hygiene-compatible language in Lisp, and
-then compile your language to that.
+Vernacular allows importing and exporting macros. The ability to export macros only becomes useful in the presence of macro hygiene. After experimenting, I have concluded that the right thing, if you want your language to support macros, is to embed a hygiene-compatible language in Lisp, and then compile your language to that.
 
-I’m not being flippant. Embedding a hygiene-compatible language in CL
-is not just doable; it’s [already been done][HCL]. As a proof of
-concept, I have converted Pascal’s Costanza’s hygiene-compatible
-implementation of [ISLISP][] in Common Lisp
-(“[Core Lisp][Core Lisp home]”) to work with Vernacular’s module system.
-This version of Core Lisp lives in [its own repository][Core Lisp].
-
-How macro exports are supported is one aspect of the Vernacular module
-system that is very likely to change.
+I’m not being flippant. Embedding a hygiene-compatible language in CL is not just doable; it’s [already been done][HCL]. As a proof of concept, I have adapted Pascal’s Costanza’s hygiene-compatible implementation of [ISLISP][] in Common Lisp (“[Core Lisp][Core Lisp home]”) to work with Vernacular’s module system. This version of Core Lisp lives in [its own repository][Core Lisp].
 
 <!-- NB Don’t remove links, even if they’re not currently being used.
 You might want them again later. -->
