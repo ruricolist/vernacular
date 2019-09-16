@@ -1,25 +1,19 @@
 # Vernacular
 
-Vernacular is a module system for languages embedded in Common Lisp.
-It is inspired by [Racket][].
+Vernacular is a build and module system for languages that compile to Common Lisp. Vernacular handles compiling files into fasls, tracking and rebuilding dependencies, and export and import between your new language, Lisp, and any other languages Vernacular supports.
 
-Vernacular enables embedding languages where modules are lexical and
-are scoped to files. This is a scenario for which [ASDF][] is useless,
-but which applies to almost all languages one might actually want to
-embed. Vernacular fills this gap.
-
-Vernacular builds on [Overlord][].
+Vernacular builds on [Overlord][] and is heavily inspired by [Racket][].
 
 # Examples
 
-Here are some example language embeddings:
+Here are some example languages:
 
-1. [vernacular/demo/js](demo/js.lisp). A simple language built on
+1. [Bosom Serpent][]. Shows how to wrap a foreign runtime (Python,
+   using [burgled-batteries][]) as an Vernacular module.
+
+2. [vernacular/demo/js](demo/js.lisp). A simple language built on
    [CL-JavaScript][]. Shows how to convert a pre-existing CL language
    implementation to work with Vernacular.
-
-2. [Bosom Serpent][]. Shows how to wrap a foreign runtime (Python,
-   using [burgled-batteries][]) as an Vernacular module.
 
 3. [cl-yesql][]. Lisp port of Clojure’s [yesql][]: lets you write SQL
    queries in separate SQL files, using special comments to guide
@@ -29,60 +23,48 @@ Here are some example language embeddings:
    dialect [ISLISP][] (itself a conceptual subset of Common Lisp).
    Shows how to use Vernacular to build “language towers.”
 
-# Embedding languages
+# Why Vernacular?
 
-Vernacular enables *languages as libraries*. Vernacular languages have
-several important properties:
+Vernacular languages have several important properties:
 
 1. Languages are *first-class*. Modules live in their own files, just
    like Lisp code, and are compiled into FASLs, just like Lisp code.
 
 2. Languages can use *any syntax*. Unlike embedded DSLs, which are
-   limited by what can be done with reader macros, full languages can
-   use any parser they like.
+   limited to reader macros, Vernacular lets you use any parser you
+   like – which means compatibility with existing tools, like editors.
 
-3. Languages are *interoperable*. Lisp code can import modules written
-   in embedded languages, and modules written in embedded languages
-   can import other modules in the same language – or even modules
-   written in other languages.
-
-4. Languages are *reusable*. Support for meta-languages allows
+3. Languages are *reusable*. Support for meta-languages allows
    different languages to share the same parser or for the same
    language to be written in more than one syntax.
 
+4. Languages are *interoperable*. Lisp code can import modules written
+   in Vernacular languages, and modules written in Vernacular
+   languages can import other modules – in the same language, or in
+   other languages.
+
 # Specifying languages
 
-A Vernacular module is a *file* in a *language*. The language of a
-module file can be specified in three ways.
+The language of a file can be specified in three ways.
 
-The language can be specified as part of the file itself, with a
-special first line. The special first line looks like this:
+The preferred way is to use a special first line:
 
     #lang my-lang
     ....
 
-This is called (following Racket) a *hash lang*.
+This is called (following Racket) a *hash lang*. A hash lang takes precedence over all other ways of specifying a language.
 
-The hash lang is the preferred way to specify a language. If you are
-creating a new language with a new syntax, this is what you should
-use. It takes precedence over all other ways of inferring the
-language.
-
-Much of the time, however, you will be re-using an existing syntax.
-Sometimes this is the point, because it lets you employ existing
-tooling like editors, linters, etc. In this case we piggyback on
-Emacs’s syntax for specifying modes, with a special string in the
-first line:
+Sometimes, however, you will be re-using an existing syntax. This lets you employ existing tooling like editors, linters, etc. In this case we borrow Emacs’s syntax for specifying modes, using a special  in the first line:
 
     # -*- mode: my-lang -*-
 
-You can consult the [Emacs manual][] for the details of the syntax.
+(You can consult the [Emacs manual][] for the details of the syntax.)
 
 The advantage of this approach is that the sequence between `-*-`
 markers does not have to appear at the beginning of the file; it can
 be commented out using the appropriate comment syntax. (If the file
-starts with a `#!` shebang, the mode can also be specified in the
-second line; this is also true of hash langs.)
+starts with a shebang (`#!`), the mode can also be specified in the
+second line, but this is also true of hash langs.)
 
 Lastly, the language of a module can be specified as part of the
 import syntax. This lets you use files as modules without having to
@@ -124,8 +106,7 @@ Any package can be used as a hash lang, as long as its name is limited
 to certain characters (`[a-zA-Z0-9/_+-]`). Of course this name can
 also be a nickname.
 
-(Note that resolution of package names is absolute, even in a Lisp
-implementation that supports [package-local nicknames][].)
+(Note that package names are absolute, even on a Lisp that supports [package-local nicknames][].)
 
 It is recommended, although not required, that your language package
 inherit from `vernacular/cl` rather than from `cl`. The result is the
