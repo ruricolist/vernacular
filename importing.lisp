@@ -421,11 +421,15 @@ the symbols bound in the body of the import form."
 (defmacro import->defpackage (package-name
                               &body (&rest body
                                      &key
+                                       nicknames
+                                       documentation
                                        ((:binding bindings))
                                      &allow-other-keys))
   (declare (ignore body))
   `(defpackage ,package-name
      (:use)
+     (:nicknames ,@nicknames)
+     ,@(unsplice (and documentation `(:documentation ,documentation)))
      (:export ,@(nub (mapcar #'private-keyword bindings)))))
 
 (defmacro import-as-package-aux (package-name &body
