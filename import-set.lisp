@@ -33,6 +33,10 @@ Influenced by, but not identical with, the R6RS syntax.")
     (,(public-ns new-name)
      ,(public-name new-name))))
 
+(defun same-binding? (x y)
+  (and (equal (public-side x) (public-side y))
+       (equal (private-side x) (private-side y))))
+
 (defun expand-import-set (import-set get-exports
                           &key (package *package*))
   "Expand IMPORT-SET, an R6RS-style import set, into a list of imports.
@@ -130,7 +134,7 @@ package (or PACKAGE, if specified.)"
                   (otherwise
                    (error 'invalid-import-set
                           :import-set import-set))))))
-    (nub (rec import-set))))
+    (remove-duplicates (rec import-set) :test #'same-binding?)))
 
 (defun only (import-set ids)
   (reduce (lambda (out id)
