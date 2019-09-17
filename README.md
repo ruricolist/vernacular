@@ -157,8 +157,6 @@ Or you can drop a prefix:
 
 # Writing languages
 
-## Why Vernacular?
-
 ## Languages
 
 In Vernacular, a language is just a package. The package exports a reader and an expander. The function bound to the symbol named `read-module` is the *package reader*. The macro bound to the symbol named `module-progn` is the *package expander*.
