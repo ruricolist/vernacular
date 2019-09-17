@@ -67,13 +67,13 @@ The preferred way is to use a special first line:
 
 This is called (following Racket) a *hash lang*. A hash lang takes precedence over all other ways of specifying a language.
 
-Sometimes, however, you will be re-using an existing syntax. This lets you employ existing tooling like editors, linters, etc. In this case we use Emacs’s syntax for specifying modes, using a special in the first line:
+Sometimes, however, you will be re-using an existing syntax. This lets you employ existing tooling like editors, linters, etc. In this case we use Emacs’s syntax for specifying modes, using a special syntax anywhere in the first line:
 
     # -*- mode: my-lang -*-
 
 (You can consult the [Emacs manual][] for the details of the syntax.)
 
-The advantage of this approach is that the sequence between `-*-` markers does not have to appear at the beginning of the file; it can be commented out using the appropriate comment syntax. (If the file starts with a shebang (`#!`), the mode can also be specified in the second line, but this is also true of hash langs.)
+The advantage of this approach is that the sequence between `-*-` markers does not have to appear at the beginning; it can be commented out using the appropriate comment syntax. (If the file starts with a shebang (`#!`), the mode can also be specified in the second line, but this is also true of hash langs.)
 
 Lastly, the language of a module can be specified as part of the import syntax. This lets you use files as modules without having to edit them at all, which may be useful for shared files you cannot edit.
 
@@ -102,7 +102,7 @@ Vernacular supports local imports using the `with-imports` form:
 
 This is local in extent, but it supports all the same options as `vernacular:import`.
 
-The `binding` clause of an import form actually supports a DSL for specifying import sets, loosely based on [R6RS][r6rs-imports].
+The `binding` clause of an import form is actually a DSL for import sets, loosely based on [R6RS][r6rs-imports].
 
 A list of names is just a list of imports:
 
