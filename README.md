@@ -1,6 +1,6 @@
 # Vernacular
 
-Vernacular is a build and module system for languages that compile to Common Lisp. Vernacular handles compiling files into fasls, tracking and rebuilding dependencies, and export and import between your new language, Lisp, and any other languages Vernacular supports.
+Vernacular is a build and module system for languages that compile to Common Lisp. Vernacular handles locating files, compiling files into fasls, tracking dependencies and rebuilding, and export and import between your new language, Lisp, and any other language Vernacular supports.
 
 Vernacular builds on [Overlord][] and is heavily inspired by [Racket][].
 
@@ -20,14 +20,20 @@ Here are some example languages:
 
 Let’s use use CL-Yesql as an example.
 
-In your system definition, add `cl-yesql/sqlite` as a dependency.
+In your system definition, add `"cl-yesql/sqlite"` as a dependency.
 
 Create a file named `fact.sql` in your system, and add the following:
 
     #lang cl-yesql/sqlite
 
-    -- name: get-facts-about @column
-    select fact from fact where subject = $1
+    -- name: create-facts-table @execute
+    CREATE TABLE fact (subject text, fact text)
+
+    -- name: add-fact @execute
+    INSERT INTO fact (subject, fact) VALUES (?, ?)
+
+    -- name: facts-about @column
+    SELECT fact FROM fact WHERE subject = ?
 
 In a Lisp file in your system, add:
 
@@ -41,13 +47,10 @@ You can then do:
         (create-facts-table db)
         (add-fact db "Lisp" "Lisp is a programmable programming language.")
         (add-fact db "Lisp" "Lisp is fun")
-        (is (set-equal
-             (facts-about db "Lisp")
-             '("Lisp is a programmable programming language."
-               "Lisp is fun")
-             :test #'equal)))
+        (facts-about db "Lisp"))
+    ;; => '("Lisp is a programmable programming language." "Lisp is fun")
 
-Two cavets. Vernacular needs to know what system your package belongs to. If your package has a different name from your system (why?), you may need to tell Vernacular what system it belong to. In the package, evaluate:
+Two cavets. Vernacular needs to know what system your package belongs to. If your package has a different name from your system (why?), you may need to tell Vernacular what system it belongs to. In the package, evaluate:
 
     (overlord:set-package-system :my-system)
 
@@ -97,9 +100,9 @@ Vernacular supports local imports using the `with-imports` form:
                               :binding :all-functions)
       ...)
 
-Besides being local in extent, this supports all the same options as `vernacular:import`.
+This is local in extent, but it supports all the same options as `vernacular:import`.
 
-The `binding` clause of an import form actually supports a DSL for specifying import sets, based on [R6RS][r6rs-imports].
+The `binding` clause of an import form actually supports a DSL for specifying import sets, loosely based on [R6RS][r6rs-imports].
 
 A list of names is just a list of imports:
 
@@ -134,6 +137,10 @@ There are shorthands for importing everything:
     :all-as-functions ; all the exports, as functions
     :all-as-setters ; all the exports, as setters
 
+These can be combined, with each other and with regular names:
+
+    (:all-functions :all-setters x y z)
+
 You can limit these using `:except`:
 
     (:except :all x y) ; All variables except x and y.
@@ -143,7 +150,7 @@ You can add a prefix to everything:
     ; Import all functions, adding sql- as a prefix.
     (:prefix :all-functions sql-)
 
-You can remove a prefix:
+Or you can drop a prefix:
 
     ; Import all functions, removing any get- prefix.
     (:drop-prefix :all-functions get-)
@@ -151,16 +158,6 @@ You can remove a prefix:
 # Writing languages
 
 ## Why Vernacular?
-
-Vernacular languages have several important properties:
-
-1. Languages are *first-class*. Modules live in their own files, just like Lisp code, and are compiled into FASLs, just like Lisp code.
-
-2. Languages can use *any syntax*. Unlike embedded DSLs, which are limited to reader macros, Vernacular lets you use any parser you like – which means compatibility with existing tools, like editors.
-
-3. Languages are *reusable*. Support for meta-languages allows different languages to share the same parser or for the same language to be written in more than one syntax.
-
-4. Languages are *interoperable*. Lisp code can import modules written in Vernacular languages, and modules written in Vernacular languages can import other modules – in the same language, or in other languages.
 
 ## Languages
 
@@ -176,7 +173,7 @@ Note that the reader is responsible for returning a single form, which is the mo
 
 ## Language packages
 
-Any package can be used as a language, but it can only be used as a hash lang if its name is limited to certain characters (`[a-zA-Z0-9/_+-]`). (Of course this name can also be a nickname.)
+Any package can be used as a language, but it can only be used as a hash lang if its name is limited to certain characters (`[a-zA-Z0-9/_+-]`). (Of course this name can also be a (global) nickname.)
 
 (Note that package names are absolute, even on a Lisp that supports [package-local nicknames][].)
 
@@ -184,11 +181,13 @@ It is recommended, although not required, that your language package inherit fro
 
 The package must export a binding for both `read-module`, a function, and `module-progn`, a macro.
 
+### Meta-languages
+
 ### Static exports
 
 If the syntax of your language makes it possible to determine exports statically, you should also define and export `static-exports`. If your language defines `static-exports`, then Vernacular can statically check the validity of import forms.
 
-(This also has implications for phasing. If your language *doesn’t* provide a `static-exports` binding, then the only way Vernacular can expand a request to import *all* bindings from a module is by loading that module *at compile time* to get a list of its exports.)
+(This also has implications for phasing. If your language *doesn’t* provide a `static-exports` binding, then the only way Vernacular can expand a request to import everything from a module is by loading that module *at compile time* to get a list of its exports.)
 
 ## Simple modules
 
