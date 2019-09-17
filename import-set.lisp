@@ -119,6 +119,9 @@ package (or PACKAGE, if specified.)"
                   ;; binding isn't removed.
                   ((list* :alias import-set renames)
                    (alias (rec import-set) renames))
+                  ((type keyword)
+                   (error 'invalid-import-set
+                          :import-set import-set))
                   ;; Imports per se.
                   ((and sym (type symbol))
                    (list `(,sym :as ,(local-name sym))))
