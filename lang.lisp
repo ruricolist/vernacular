@@ -563,7 +563,7 @@ providing a restart to compile it if necessary."
   (overlord:function-oracle 'source-lang-for-oracle source))
 
 (defun compiled-module-target (source)
-  (pattern-ref (make 'fasl-lang-pattern) source))
+  (pattern-ref source (make 'fasl-lang-pattern)))
 
 (defmacro with-input-from-source ((stream source) &body body)
   "Read from SOURCE, skipping any #lang declaration."
