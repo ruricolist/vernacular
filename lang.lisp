@@ -28,7 +28,7 @@
     :*before-hard-freeze-hook*)
   (:import-from :overlord/specials
     :*base* :*base-package*)
-  (:import-from :vernacular/symbols
+  (:import-from :vernacular/well-known-exports
     :default)
   (:import-from :vernacular/specials
     :*language*

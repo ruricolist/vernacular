@@ -346,7 +346,7 @@
 (test reserved
   (is (null
        (expand-import-set :all
-                          '(vernacular/symbols:default vernacular/symbols:main)))))
+                          '(vernacular/well-known-exports:default vernacular/well-known-exports:main)))))
 
 
 ;;; Core Lisp.

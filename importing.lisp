@@ -22,7 +22,7 @@
     :absolute-pathname)
   (:import-from :overlord/freeze
     :*before-hard-freeze-hook*)
-  (:import-from :vernacular/symbols
+  (:import-from :vernacular/well-known-exports
     :default)
   (:import-from :vernacular/types
     :vernacular-error)
@@ -350,7 +350,7 @@ yet been loaded."
 (defun private-keyword (clause)
   (let ((sym (private-name clause)))
     (if (eql (symbol-package sym)
-             (find-package :vernacular/symbols))
+             (find-package :vernacular/well-known-exports))
         sym
         (make-keyword sym))))
 

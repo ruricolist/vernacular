@@ -49,7 +49,7 @@ package (or PACKAGE, if specified.)"
                (lambda ()
                  (let ((exports (funcall get-exports)))
                    ;; Strip reserved names (default, main, etc.).
-                   (remove (find-package :vernacular/symbols)
+                   (remove (find-package :vernacular/well-known-exports)
                            exports
                            :key (compose #'symbol-package #'public-name))))))
              (local-name

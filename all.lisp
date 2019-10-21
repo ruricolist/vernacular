@@ -21,7 +21,7 @@
    :intern-file-package :reset-file-package
    :*module* :*source*)
   (:use-reexport
-   :vernacular/symbols
+   :vernacular/well-known-exports
    :vernacular/lang
    :vernacular/import-set
    :vernacular/importing
