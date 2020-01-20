@@ -1,8 +1,10 @@
 # Vernacular
 
-Vernacular is a build and module system for languages that compile to Common Lisp. Vernacular handles locating files, compiling files into fasls, tracking dependencies and rebuilding, and export and import between your new language, Lisp, and any other language Vernacular supports.
+Vernacular is a build and module system for languages that compile to Common Lisp. It allows languages to compile to Lisp while remaining part of the Common Lisp ecosystem. Vernacular languages interoperate with Common Lisp and one another.
 
-Vernacular builds on [Overlord][] and is heavily inspired by [Racket][].
+Vernacular handles locating files, compiling files into fasls, tracking dependencies and rebuilding, and export and import between your new language, Lisp, and any other language Vernacular supports.
+
+Vernacular builds on [Overlord][] and is inspired by [Racket][].
 
 # Examples
 
@@ -50,7 +52,7 @@ You can then do:
         (facts-about db "Lisp"))
     ;; => '("Lisp is a programmable programming language." "Lisp is fun")
 
-Two cavets. Vernacular needs to know what system your package belongs to. If your package has a different name from your system (why?), you may need to tell Vernacular what system it belongs to. In the package, evaluate:
+Two caveats. Vernacular needs to know what system your package belongs to. If your package has a different name from your system (why?), you may need to tell Vernacular what system it belongs to. In the package, evaluate:
 
     (overlord:set-package-system :my-system)
 
@@ -60,12 +62,12 @@ Also, note that import paths are given relative to the base of the system, not t
 
 The language of a file can be specified in three ways.
 
-The preferred way is to use a special first line:
+The preferred way is to use a special first line (or second line, if the first line starts with `#!`):
 
     #lang my-lang
     ....
 
-This is called (following Racket) a *hash lang*. A hash lang takes precedence over all other ways of specifying a language.
+This is called a *hash lang*. A hash lang takes precedence over all other ways of specifying a language.
 
 Sometimes, however, you will be re-using an existing syntax. This lets you employ existing tooling like editors, linters, etc. In this case we use Emacs’s syntax for specifying modes, using a special syntax anywhere in the first line:
 
@@ -73,7 +75,7 @@ Sometimes, however, you will be re-using an existing syntax. This lets you emplo
 
 (You can consult the [Emacs manual][] for the details of the syntax.)
 
-The advantage of this approach is that the sequence between `-*-` markers does not have to appear at the beginning; it can be commented out using the appropriate comment syntax. (If the file starts with a shebang (`#!`), the mode can also be specified in the second line, but this is also true of hash langs.)
+The advantage of this approach is that the sequence between `-*-` markers does not have to appear at the beginning; it can be commented out using the appropriate comment syntax. (If the file starts with `#!`, the mode can also be specified in the second line.)
 
 Lastly, the language of a module can be specified as part of the import syntax. This lets you use files as modules without having to edit them at all, which may be useful for shared files you cannot edit.
 
@@ -161,7 +163,7 @@ Or you can drop a prefix:
 
 In Vernacular, a language is just a package. The package exports a reader and an expander. The function bound to the symbol named `read-module` is the *package reader*. The macro bound to the symbol named `module-progn` is the *package expander*.
 
-The important thing: when the package’s reader is called, that same package is also bound as the *current* package. It is then the responsibility of the reader to make sure any symbols it reads in, or inserts into the expansion, are interned in the correct package. (There is a shortcut for this, `vernacular:reintern`.)
+The important thing: when the package’s reader is called, that same package is also bound as the *current* package. It is then the responsibility of the reader to make sure any symbols it reads in, or inserts into the expansion, are interned in the correct package. (There is a utility for this, `vernacular:reintern`.)
 
 (There is one exception to the rule of *language=package*. If another package exists, having the same name, but ending in `-user`, and this other package inherits from the original package, then this *user package* is the package that is made current while reading (and expanding). E.g. a file beginning with `#lang cl` would actually be read in using the `cl-user` package, not the `cl` package itself.)
 
