@@ -6,7 +6,7 @@
   (:import-from #:trivial-garbage
     #:make-weak-pointer
     #:weak-pointer-value)
-  (:import-from #:vernacular/well-known-exports
+  (:import-from #:vernacular/well-known
     #:default)
   (:export
    ;; Module-related conditions

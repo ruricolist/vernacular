@@ -344,9 +344,9 @@
                        '(:x :y :z))))
 
 (test reserved
-  (is (null
-       (expand-import-set :all
-                          '(vernacular/well-known-exports:default vernacular/well-known-exports:main)))))
+      (is (null
+           (expand-import-set :all
+                              '(vernacular/well-known:default vernacular/well-known:main)))))
 
 
 ;;; Core Lisp.
