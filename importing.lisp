@@ -192,7 +192,7 @@
          :values ,bindings)
        ;; Fetch the symbols from bindings and export them.
        ,@(when export-bindings
-           (let ((symbols (mapcar (compose #'second #'second) bindings)))
+           (let ((symbols (mapcar (compose #'second #'third) bindings)))
              `((export ',symbols))))
        ;; Strictly for debuggability.
        (values ',module ',bindings))))
