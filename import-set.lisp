@@ -4,6 +4,7 @@ Influenced by, but not identical with, the R6RS syntax.")
   (:use :cl :alexandria :serapeum
     :vernacular/types)
   (:import-from :trivia :match :ematch)
+  (:shadow :drop-prefix)
   (:export
    :expand-import-set
    :import-set=))
