@@ -18,8 +18,6 @@
     :match :ematch)
   (:shadowing-import-from :trivia
     :defpattern)
-  (:import-from :overlord/types
-    :absolute-pathname)
   (:import-from :overlord/freeze
     :*before-hard-freeze-hook*)
   (:import-from :vernacular/well-known
