@@ -1,7 +1,7 @@
 (defpackage #:vernacular/specials
   (:documentation "Special variables used throughout.")
   (:use #:cl #:overlord/types)
-  (:import-from #:serapeum #:defvar-unbound)
+  (:import-from #:serapeum #:defvar-unbound #:absolute-pathname)
   (:import-from #:overlord/specials #:register-worker-special)
   (:export
    #:*input*
