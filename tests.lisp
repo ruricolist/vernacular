@@ -6,17 +6,17 @@
   (:import-from :overlord/tests :with-temp-db :touch)
   (:import-from :vernacular/lang :compiled-module-target)
   (:import-from :vernacular :with-imports :require-as
-    :with-import-default :require-default)
+   :with-import-default :require-default)
   (:import-from :vernacular/file-local
-    :file-emacs-mode)
+   :file-emacs-mode)
   (:import-from :vernacular/file-package
-    :abbreviate-file-name)
+   :abbreviate-file-name)
   ;; Languages.
   (:import-from :vernacular/demo/js)
   ;; (:import-from :vernacular/lang/sweet-exp)
   (:import-from :vernacular/lang/s-exp)
-  (:import-from :core-lisp)
-  (:export :run-vernacular-tests))
+  (:export :run-vernacular-tests
+   :with-imports*))
 (in-package :vernacular/tests)
 
 (def-suite vernacular)
@@ -344,59 +344,10 @@
                        '(:x :y :z))))
 
 (test reserved
-      (is (null
-           (expand-import-set :all
-                              '(vernacular/well-known:default vernacular/well-known:main)))))
+  (is (null
+       (expand-import-set :all
+                          '(vernacular/well-known:default vernacular/well-known:main)))))
 
-
-;;; Core Lisp.
-
-(def-suite islisp :in vernacular)
-
-(in-suite islisp)
-
-(test hello-islisp
-  (is (equal "hello world"
-             (with-imports* (m :from "tests/islisp/islisp.lsp" :binding (hello))
-               hello))))
-
-(test islisp-dont-be-shadowed
-  (is (equal '(:right :right :right)
-             (with-imports* (m :from "tests/islisp/dont-be-shadowed.lsp"
-                               :binding (syms (xyz :as #'expand-xyz)))
-               (destructuring-bind (x y z) syms
-                 (eval
-                  `(let ((,x :wrong)) (declare (ignorable ,x))
-                     (flet ((,y () :wrong)) (declare (ignore #',y))
-                       (macrolet ((,z () :wrong))
-                         ,(expand-xyz nil nil))))))))))
-
-;;; TODO.
-;; (test islisp-imports
-;;   (is (equal '(:var :fn :macro)
-;;              (require-default "tests/islisp/imports.lsp"))))
-
-(test islisp-auto-alias
-  (is (equal '(0 1)
-             (require-default "tests/islisp/shadowing.lsp"))))
-
-(test islisp-hygiene
-  (touch #1="tests/islisp/hygiene.lsp")
-  ;; Not the desired results, just the ones we expect.
-  (handler-bind ((warning #'muffle-warning))
-    (is (equal '(4 6 :ERROR 4 16 :ERROR)
-               (require-default #1#)))))
-
-(test islisp-globals-can-close
-  "Test that globals defined with `defglobal' close over themselves."
-  (with-imports* (m :from "tests/islisp/globals-can-close.lsp" :binding (x))
-    (is (eql x (funcall x)))))
-
-(test islisp-phasing
-  "Test that state is not preserved across rebuilds."
-  (require-as nil #1="tests/islisp/phasing.lsp")
-  (with-imports* (m :from #1# :binding (#'inc-count))
-    (is (= (inc-count) 0))))
 
 ;;; Includes.
 
