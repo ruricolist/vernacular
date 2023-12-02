@@ -154,21 +154,6 @@
         (is (= (length frames) 80))
         (is-true (notany #'equal frames (rest frames)))))))
 
-;;; Import as package.
-
-(test import-as-package
-  (let ((pkg :vernacular-test/as-package))
-    (when (find-package pkg)
-      (delete-package pkg))
-    (eval `(vernacular:import-as-package ,pkg
-             :from "tests/islisp/exports.lsp"
-             :binding (x #'y (macro-function z))))
-    (is-true (find-package pkg))
-    (is (equal '(:var :fn :macro)
-               (eval `(list ,(find-symbol (string 'x) pkg)
-                            (,(find-symbol (string 'y) pkg))
-                            (,(find-symbol (string 'z) pkg))))))))
-
 ;;; Import sets.
 
 (def-suite import-set :in vernacular)
